@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""PCS 1-Stop (PC1): the recipe editor, the task queue and the HTTP API the PC2 workers talk to.
+
+    uv run app.py                     # settings come from config.json (paths, checker options, host/port, queue)
+    uv run app.py --config my.json    # use another settings file
+
+    /          recipe editor (upload a recipe XML -> parse -> edit -> save; the workflow paths are checked by a worker)
+    /tasks     every task of the queue            /workers   the PC2 machines
+    /api/...   what the workers call (see README.md)
+
+PC2 runs ``worker/worker_agent.py``, which polls this server every 10 seconds.
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
+from nicegui import app, ui
+from sqlalchemy.exc import SQLAlchemyError
+
+from api import install_api
+from config import ConfigError, Settings
+from database import Database, init_db
+from scheduler import MonitorScheduler, install_scheduler
+from services import Services
+from ui import register_pages  # our package, not nicegui.ui
+from ui.common import STATIC
+
+log = logging.getLogger("pcs.app")
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def build_services(settings: Settings) -> Services:
+    """Open (and, the first time, create) the task store and wire the services to it."""
+    db = Database(settings.database_path)
+    init_db(db)
+    return Services.create(
+        db,
+        offline_after=settings.worker_offline_after,
+        assigned_timeout=settings.assigned_timeout,
+        running_timeout=settings.running_timeout,
+        api_token=settings.api_token,
+    )
+
+
+def setup_logging(settings: Settings) -> None:
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    log_file = settings.database_path.parent / "pcs1stop.log"
+    try:
+        handlers.append(RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8"))
+    except OSError as exc:  # a log file that cannot be opened must not keep the server from starting
+        print(f"warning: no log file ({exc})", file=sys.stderr)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+        handlers=handlers,
+        force=True,
+    )
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    ap = argparse.ArgumentParser(description="PCS 1-Stop (NiceGUI + task queue)")
+    ap.add_argument(
+        "--config",
+        metavar="FILE",
+        help="settings file (default: config.json next to app.py)",
+    )
+    return ap.parse_args(argv)
+
+
+def run_options(settings: Settings) -> dict:
+    """The arguments ``ui.run`` is started with."""
+    return {
+        "host": settings.host,
+        "port": settings.port,
+        "title": "PCS Recipe Checker",
+        "reload": False,
+        "show": False,  # a server: nobody wants a browser window to pop up on it
+        "show_welcome_message": False,
+        "uvicorn_logging_level": "warning",  # one access-log line per worker poll would drown everything else
+        "favicon": "🧾",
+    }
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    try:
+        settings = Settings(args.config)
+        services = build_services(settings)
+    except ConfigError as e:
+        sys.exit(f"Cannot start - {e}")
+    except (OSError, RuntimeError, SQLAlchemyError) as e:  # folder not writable, file locked, newer schema, ...
+        sys.exit(f"Cannot start - the task store could not be opened: {e}")
+    setup_logging(settings)
+
+    install_api(app, services)
+    app.add_static_files("/pcs", STATIC)
+    register_pages(services, settings)
+    install_scheduler(app.on_startup, app.on_shutdown, MonitorScheduler(services.monitor, settings.monitor_interval))
+    app.on_shutdown(services.db.dispose)
+
+    log.info("task store: %s", settings.database_path)
+    if not settings.alarm_map or not Path(settings.alarm_map).is_file():
+        log.warning(
+            "alarm map not found (%s) - recipe validation will report errors; set paths.alarm_map in config.json",
+            settings.alarm_map or "no path set",
+        )
+    else:
+        log.info("alarm map: %s", settings.alarm_map)
+    if settings.host in LOCAL_HOSTS:
+        log.warning(
+            "listening on %s only - workers on other PCs cannot connect; set server.host to 0.0.0.0 in config.json",
+            settings.host,
+        )
+    elif not settings.api_token:
+        log.warning("the API is open to the network without a token - set tasks.api_token in config.json")
+    ui.run(**run_options(settings))
+
+
+if __name__ in {"__main__", "__mp_main__"}:
+    main()

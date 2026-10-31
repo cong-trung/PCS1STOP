@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.nicegui/
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.log*
+worker/*.log*
+# the built PC2 package holds the API token
+dist/

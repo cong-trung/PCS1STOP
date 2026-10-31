@@ -1,0 +1,276 @@
+/* PCS Recipe Checker - look & feel of the old WinForms window (teal #0F7D86, Segoe UI). */
+:root {
+  --pcs-teal: #0f7d86;
+  --pcs-teal-hover: #0096a0;
+  --pcs-ink: #1b1b1b;
+  --pcs-bg: #f4f6f7;
+  --pcs-line: #c9ced1;
+}
+
+html,
+body {
+  background: var(--pcs-bg);
+  color: var(--pcs-ink);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+.nicegui-content {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.q-page {
+  min-height: 0 !important;
+}
+
+/* ---- window frame ---------------------------------------------------------------------------- */
+.pcs-root {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+  overflow: hidden;
+}
+
+.pcs-toolbar {
+  flex: 0 0 auto;
+  padding: 3px 8px 3px 6px;
+  border-bottom: 1px solid #e0e3e5;
+  background: #fff;
+}
+
+.pcs-product {
+  width: 128px;
+}
+
+.pcs-product .q-field__control {
+  height: 34px;
+}
+
+.pcs-pathrow {
+  flex: 0 0 auto;
+  background: #fff;
+  padding: 5px 6px;
+}
+
+.pcs-pathrow .q-field--readonly .q-field__control:before {
+  border-style: solid !important;
+}
+
+.pcs-actions {
+  flex: 0 0 auto;
+  padding: 6px 6px 2px;
+}
+
+.pcs-info {
+  color: #4a5459;
+}
+
+.pcs-savehint {
+  color: #c62828;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.pcs-section {
+  font-weight: 700;
+  padding: 4px 0 2px;
+}
+
+.pcs-sectionrow {
+  min-height: 28px;
+}
+
+.pcs-addrow {
+  min-height: 22px !important;
+  padding: 0 6px !important;
+  font-weight: 600;
+}
+
+.pcs-grids {
+  flex: 3 1 0;
+  min-height: 130px;
+  padding: 0 6px;
+  gap: 6px;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.pcs-gridbox {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.pcs-gridwrap {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+}
+
+.pcs-rule {
+  flex: 6 1 0;
+  min-height: 170px;
+  padding: 0 6px 4px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+}
+
+.pcs-panels {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+}
+
+.pcs-errtext {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  white-space: pre;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--pcs-line);
+  user-select: text;
+}
+
+.pcs-status {
+  flex: 0 0 auto;
+  background: var(--pcs-teal);
+  color: #fff;
+  min-height: 24px;
+  padding: 0 8px;
+}
+
+/* ---- grids ----------------------------------------------------------------------------------- */
+.pcs-grid {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--pcs-line);
+  --ag-font-size: 13px;
+  --ag-font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.pcs-grid .ag-header,
+.pcs-grid .ag-header-row,
+.pcs-grid .ag-header-cell,
+.pcs-grid .ag-header-group-cell {
+  background-color: var(--pcs-teal) !important;
+  color: #fff !important;
+}
+
+.pcs-grid .ag-header-cell-text {
+  font-weight: 700;
+  color: #fff;
+}
+
+.pcs-grid .ag-header-cell .ag-icon,
+.pcs-grid .ag-header-cell-menu-button .ag-icon {
+  color: #fff;
+}
+
+.pcs-grid .ag-cell {
+  user-select: none;
+}
+
+.pcs-grid .ag-cell-wrap-text {
+  word-break: break-all;
+  line-height: 1.35;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.pcs-grid .ag-cell.pcs-sel {
+  background-color: rgba(15, 125, 134, 0.2) !important;
+}
+
+.pcs-edit-mode .pcs-grid {
+  border: 2px solid var(--pcs-teal);
+}
+
+.pcs-edit-mode .pcs-grid .ag-cell.pcs-editable {
+  /* translucent overlay: editable cells stand out but the red / green row tint still shows through */
+  background-image: linear-gradient(rgba(255, 235, 90, 0.2), rgba(255, 235, 90, 0.2));
+}
+
+.pcs-grid .ag-row.pcs-row-err {
+  background-color: #ffe3e8;
+}
+
+.pcs-grid .ag-row.pcs-row-ok {
+  background-color: #e8f6ec;
+}
+
+.pcs-empty {
+  color: #6b7478;
+  font-style: italic;
+}
+
+/* trash icon of a row: faded until Edit mode is on (a click before that only says so) */
+.pcs-grid .ag-cell.pcs-trashcell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.pcs-trash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 18px;
+  line-height: 1;
+  color: #7b868b;
+  opacity: 0.3;
+  user-select: none;
+}
+
+.pcs-edit-mode .pcs-trash {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.pcs-edit-mode .pcs-trash:hover {
+  color: #c62828;
+  background: rgba(198, 40, 40, 0.14);
+}
+
+/* Check column of the List Workflow table: what a worker found out about the Path */
+.pcs-grid .ag-cell.pcs-chk-ok {
+  color: #1b6e32;
+  font-weight: 600;
+}
+
+.pcs-grid .ag-cell.pcs-chk-bad {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.pcs-grid .ag-cell.pcs-chk-warn {
+  color: #a35a00;
+  font-weight: 600;
+}
+
+.pcs-grid .ag-cell.pcs-chk-wait {
+  color: #5f6b72;
+  font-style: italic;
+}
+
+/* toolbar buttons that open the Tasks / Workers pages */
+.pcs-toolbar a.q-btn {
+  text-decoration: none;
+}

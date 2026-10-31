@@ -1,0 +1,118 @@
+/* PCS 1-Stop - Tasks and Workers pages (the Recipe page has its own look in pcs.css). */
+
+.ops-root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+}
+
+.ops-nav {
+  background: var(--pcs-teal);
+  color: #fff;
+  min-height: 40px;
+  padding: 0 12px;
+  gap: 2px;
+}
+
+.ops-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-right: 18px;
+}
+
+.ops-nav a.ops-link {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 12px 7px;
+  border-bottom: 3px solid transparent;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.ops-nav a.ops-link:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ops-nav a.ops-link.active {
+  opacity: 1;
+  border-bottom-color: #fff;
+}
+
+.ops-body {
+  padding: 12px 16px;
+  gap: 10px;
+  width: 100%;
+}
+
+.ops-bar {
+  gap: 14px;
+  width: 100%;
+}
+
+.ops-summary {
+  color: #4a5459;
+}
+
+.ops-updated {
+  color: #6b7478;
+  font-size: 12px;
+}
+
+.ops-table {
+  width: 100%;
+  background: #fff;
+}
+
+.ops-table th {
+  font-weight: 700;
+  color: #fff;
+  background: var(--pcs-teal);
+}
+
+.ops-table tbody tr {
+  cursor: default;
+}
+
+.ops-tasks tbody tr {
+  cursor: pointer;
+}
+
+.ops-error {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.ops-mono {
+  flex: 0 0 auto;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  background: #f4f6f7;
+  border: 1px solid var(--pcs-line);
+  padding: 6px 8px;
+  max-height: 220px;
+  overflow: auto;
+  width: 100%;
+}
+
+.ops-detail {
+  min-width: min(720px, 92vw);
+  gap: 6px;
+  overflow: auto;
+}
+
+.ops-detail .ops-key {
+  font-weight: 700;
+  margin-top: 4px;
+}

@@ -1,0 +1,14 @@
+{
+  "server_url": "http://127.0.0.1:8080",
+  "hostname": "",
+  "poll_interval_s": 10,
+  "heartbeat_interval_s": 20,
+  "request_timeout_s": 15,
+  "task_timeout_s": 120,
+  "max_backoff_s": 60,
+  "max_delivery_s": 3600,
+  "api_token": "",
+  "allowed_roots": [],
+  "max_stuck_tasks": 8,
+  "log_file": "worker.log"
+}
