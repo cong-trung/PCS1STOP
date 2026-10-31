@@ -32,6 +32,7 @@ relative to the folder of `config.json`:
 | `checker.skip_workflow_check` | `true` = `recipe_checker` does not require the Workflow files to exist on PC1 (the workers check them) |
 | `server.host` / `server.port` | where the app listens (restart needed). As shipped `127.0.0.1:8007` = this PC only, which is right behind IIS. `0.0.0.0` = the whole network - only for workers that connect to the port directly (that needs a firewall rule) |
 | `server.public_url` | the address the workers and the users reach the app at: the IIS site, `http://ppv-pcs1stop-ss.intel.com`. `build_worker_package.py` puts it into the PC2 package. Empty = `http://<this PC>:<port>` (a direct connection). Read *Security* below |
+| `server.websocket` | how the browsers stay connected. `false` (default, as shipped) = plain HTTP polling, which works behind every reverse proxy at once. `true` = WebSocket first, polling as the fallback: lighter, but IIS + ARR often cannot relay it - the browser then waits about 20 s before it falls back, or keeps retrying the WebSocket - and the Recipe, Tasks and Workers pages stay empty meanwhile |
 | `ui.product` | `SST` or `HST` - the Product box (remembered here) |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
@@ -49,7 +50,8 @@ moment is left alone, and the page says so.)
 `http://ppv-pcs1stop-ss.intel.com` on port 80, and that address is what the users and the workers use. The port itself is
 not reachable from other PCs, so **no firewall rule is needed**. The site's `web.config` is `deploy/iis/web.config` (one
 rewrite rule to `http://127.0.0.1:8007` - change the port there if you change `server.port`): copy it into the site's
-folder. Workers never follow a redirect (their token would
+folder. The browsers use plain HTTP polling (`server.websocket` is `false`), so IIS needs no *WebSocket Protocol* feature; a
+WebSocket that IIS cannot relay leaves the pages empty. Workers never follow a redirect (their token would
 travel with it), so `server_url` must be the final address: do not redirect `/api` from HTTP to HTTPS - or put the
 `https://` address into `server.public_url` and rebuild the package.
 

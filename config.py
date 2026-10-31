@@ -3,7 +3,7 @@
     {
       "paths":    { "alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml" },
       "checker":  { "skip_workflow_check": true },
-      "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com" },
+      "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com", "websocket": false },
       "ui":       { "product": "SST" },
       "database": { "path": "data/queue.db" },
       "tasks":    { "monitor_interval_s": 60, "worker_offline_after_s": 60, "assigned_timeout_s": 300,
@@ -23,6 +23,10 @@ server.public_url           the address the workers and the users reach the app 
                             http://<this PC's name>:<server.port>.  The web pages have NO login: whoever can reach
                             that address can upload recipes, queue checks and read the queue, so keep it on a trusted
                             network and set tasks.api_token for the API
+server.websocket            how the browsers stay connected to the app.  false (default) = plain HTTP polling, which works
+                            behind every reverse proxy at once.  true = WebSocket first, polling as the fallback: lighter,
+                            but a proxy that leaves the upgrade unanswered (IIS without its "WebSocket Protocol" feature)
+                            makes every page sit dead for about 20 seconds before the browser falls back
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
@@ -63,7 +67,7 @@ PRODUCTS = ("SST", "HST")
 DEFAULTS: dict[str, dict[str, Any]] = {
     "paths": {"alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml"},  # the copy next to config.json, no C:\ needed
     "checker": {"skip_workflow_check": True},
-    "server": {"host": "127.0.0.1", "port": 8080, "public_url": ""},  # (how workers on other PCs get in: see above)
+    "server": {"host": "127.0.0.1", "port": 8080, "public_url": "", "websocket": False},  # (see above)
     "ui": {"product": PRODUCTS[0]},
     "database": {"path": "data/queue.db"},
     "tasks": {
@@ -152,6 +156,7 @@ def _validate(data: dict, where: str) -> None:
             f'{where}: "server.public_url" must look like http://host or http://host:port (no folder after it), '
             f"got {json.dumps(public_url)}"
         )
+    expect("server", "websocket", (bool,), "true or false")
     product = expect("ui", "product", (str,), "SST or HST")
     if product.strip().upper() not in PRODUCTS:
         raise ConfigError(f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}')
@@ -280,6 +285,11 @@ class Settings:
     def public_url(self) -> str:
         """The address the workers reach the app at (the reverse proxy's site, no trailing slash); '' when not set."""
         return self.data["server"]["public_url"].strip().rstrip("/")
+
+    @property
+    def websocket(self) -> bool:
+        """True = the browsers try a WebSocket first; False = they use HTTP polling only."""
+        return self.data["server"]["websocket"]
 
     @property
     def product(self) -> str:

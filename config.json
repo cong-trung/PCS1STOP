@@ -8,7 +8,8 @@
   "server": {
     "host": "127.0.0.1",
     "port": 8007,
-    "public_url": "http://ppv-pcs1stop-ss.intel.com"
+    "public_url": "http://ppv-pcs1stop-ss.intel.com",
+    "websocket": false
   },
   "ui": {
     "product": "HST"

@@ -47,6 +47,16 @@ def build_services(settings: Settings) -> Services:
     )
 
 
+class QuietSessionRace(logging.Filter):
+    """python-engineio raises KeyError('Session is disconnected') when the last polling request of a browser reaches the
+    server just after its tab was closed.  The browser is gone and nothing is wrong, so uvicorn's traceback for it is kept
+    out of the log."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        error = record.exc_info[1] if record.exc_info else None
+        return not (isinstance(error, KeyError) and error.args == ("Session is disconnected",))
+
+
 def setup_logging(settings: Settings) -> None:
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     log_file = settings.database_path.parent / "pcs1stop.log"
@@ -60,6 +70,15 @@ def setup_logging(settings: Settings) -> None:
         handlers=handlers,
         force=True,
     )
+    logging.getLogger("uvicorn.error").addFilter(QuietSessionRace())
+
+
+def configure_transport(settings: Settings) -> None:
+    """How the browsers stay connected to the app: plain HTTP polling unless ``server.websocket`` is on.  A WebSocket is
+    lighter, but a reverse proxy that cannot relay it (IIS) either leaves the upgrade unanswered - every page then sits
+    dead for 20 seconds before the browser falls back - or lets it open and drops it at once, and the browser keeps
+    retrying the WebSocket and never gets to polling.  Polling works behind every proxy straight away."""
+    app.config.socket_io_js_transports = ["websocket", "polling"] if settings.websocket else ["polling"]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -134,6 +153,8 @@ def main(argv: list[str] | None = None) -> None:
         log.info("alarm map: %s", settings.alarm_map)
     for level, message in reachability_notes(settings):
         log.log(level, "%s", message)
+    configure_transport(settings)
+    log.info("browsers connect by %s", "WebSocket, polling as the fallback" if settings.websocket else "HTTP polling only")
     ui.run(**run_options(settings))
 
 

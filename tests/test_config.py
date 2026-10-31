@@ -108,6 +108,14 @@ def test_public_url_is_trimmed_and_may_be_empty(tmp_path):
     assert Settings(write(tmp_path / "c.json", {})).public_url == "" == DEFAULTS["server"]["public_url"]
 
 
+def test_the_browsers_use_polling_unless_websocket_is_switched_on(tmp_path):
+    assert Settings(write(tmp_path / "a.json", {})).websocket is False  # also a config.json written before the setting existed
+    assert Settings(write(tmp_path / "b.json", {"server": {"websocket": True}})).websocket is True
+    assert Settings(write(tmp_path / "c.json", {"server": {"websocket": False}})).websocket is False
+    with pytest.raises(ConfigError, match="server.websocket"):
+        Settings(write(tmp_path / "d.json", {"server": {"websocket": "yes"}}))
+
+
 def test_the_shipped_config_can_be_reached_by_the_workers():
     """Listening on this PC only is right behind a reverse proxy (IIS) - but then the config has to say where the proxy
     publishes the app, or the package for PC2 has no address to connect to."""

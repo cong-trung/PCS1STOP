@@ -120,6 +120,38 @@ def test_an_api_the_network_can_reach_without_a_token_is_warned_about(tmp_path):
     assert not any("without a token" in text for _, text in only)
 
 
+def test_the_transport_follows_the_websocket_setting(tmp_path):
+    import app as pcs_app
+    from config import Settings
+    from nicegui import app as nicegui_app
+
+    original = list(nicegui_app.config.socket_io_js_transports)
+    path = tmp_path / "config.json"
+    try:
+        path.write_text(json.dumps({"server": {"websocket": False}}), encoding="utf-8")
+        pcs_app.configure_transport(Settings(path))
+        assert nicegui_app.config.socket_io_js_transports == ["polling"]  # no WebSocket attempt at all
+        path.write_text(json.dumps({"server": {"websocket": True}}), encoding="utf-8")
+        pcs_app.configure_transport(Settings(path))
+        assert nicegui_app.config.socket_io_js_transports == ["websocket", "polling"]
+    finally:
+        nicegui_app.config.socket_io_js_transports = original
+
+
+def test_the_session_race_traceback_is_kept_out_of_the_log():
+    import app as pcs_app
+
+    def record(error):
+        exc_info = (type(error), error, None) if error is not None else None
+        return logging.LogRecord("uvicorn.error", logging.ERROR, __file__, 1, "Exception in ASGI application", None, exc_info)
+
+    quiet = pcs_app.QuietSessionRace()
+    assert quiet.filter(record(KeyError("Session is disconnected"))) is False  # the harmless race of a closed tab
+    assert quiet.filter(record(KeyError("something else"))) is True  # any other error is still logged
+    assert quiet.filter(record(ValueError("Session is disconnected"))) is True
+    assert quiet.filter(record(None)) is True
+
+
 def test_the_three_pages_and_the_assets_are_served(app_url):
     url, _ = app_url
     status, html = get(url + "/")
