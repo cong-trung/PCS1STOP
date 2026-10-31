@@ -102,6 +102,21 @@ def test_api_token_is_trimmed(tmp_path):
     assert Settings(write(tmp_path / "c.json", {"tasks": {"api_token": "  s3cret "}})).api_token == "s3cret"
 
 
+def test_public_url_is_trimmed_and_may_be_empty(tmp_path):
+    assert Settings(write(tmp_path / "a.json", {"server": {"public_url": "  http://pc1.example.com/ "}})).public_url == "http://pc1.example.com"
+    assert Settings(write(tmp_path / "b.json", {"server": {"public_url": "https://pc1.example.com:8443"}})).public_url == "https://pc1.example.com:8443"
+    assert Settings(write(tmp_path / "c.json", {})).public_url == "" == DEFAULTS["server"]["public_url"]
+
+
+def test_the_shipped_config_can_be_reached_by_the_workers():
+    """Listening on this PC only is right behind a reverse proxy (IIS) - but then the config has to say where the proxy
+    publishes the app, or the package for PC2 has no address to connect to."""
+    from config import DEFAULT_CONFIG_PATH
+
+    settings = Settings(DEFAULT_CONFIG_PATH)
+    assert settings.host not in ("127.0.0.1", "localhost", "::1") or settings.public_url
+
+
 @pytest.mark.parametrize(
     ("data", "needle"),
     [
@@ -117,6 +132,14 @@ def test_api_token_is_trimmed(tmp_path):
         ({"tasks": {"api_token": "to\nken"}}, "tasks.api_token"),
         ({"ui": {"product": "XST"}}, "ui.product"),
         ({"server": {"port": 70000}}, "server.port"),
+        ({"server": {"public_url": 5}}, "server.public_url"),
+        ({"server": {"public_url": "pc1.example.com"}}, "server.public_url"),
+        ({"server": {"public_url": "ftp://pc1.example.com"}}, "server.public_url"),
+        ({"server": {"public_url": "http://pc1.example.com/pcs"}}, "server.public_url"),
+        ({"server": {"public_url": "http://pc1.example.com:99999"}}, "server.public_url"),
+        ({"server": {"public_url": "http://pc1.example.com:abc"}}, "server.public_url"),
+        ({"server": {"public_url": "http://user:pw@pc1.example.com"}}, "server.public_url"),
+        ({"server": {"public_url": "http://pc1.example.com?x=1"}}, "server.public_url"),
         ({"tasks": []}, '"tasks" must be an object'),
     ],
 )

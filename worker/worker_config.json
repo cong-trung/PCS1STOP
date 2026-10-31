@@ -9,6 +9,7 @@
   "max_delivery_s": 3600,
   "api_token": "",
   "allowed_roots": [],
+  "drive_map": { "SST": { "M": "Y" }, "HST": { "M": "X" } },
   "max_stuck_tasks": 8,
   "log_file": "worker.log"
 }

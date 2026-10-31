@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -87,6 +88,36 @@ def test_the_app_never_opens_a_browser(tmp_path):
     options = pcs_app.run_options(Settings(tmp_path / "config.json"))
     assert options["show"] is False and options["reload"] is False
     assert (options["host"], options["port"]) == ("127.0.0.1", 8080)
+
+
+def notes_for(tmp_path, server: dict, token: str = "s3cret") -> list[tuple[int, str]]:
+    import app as pcs_app
+    from config import Settings
+
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"server": server, "tasks": {"api_token": token}}), encoding="utf-8")
+    return pcs_app.reachability_notes(Settings(path))
+
+
+def test_listening_on_this_pc_only_is_fine_behind_a_reverse_proxy(tmp_path):
+    notes = notes_for(tmp_path, {"host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com"})
+    assert [level for level, _ in notes] == [logging.INFO]
+    assert "127.0.0.1:8007" in notes[0][1] and "http://ppv-pcs1stop-ss.intel.com" in notes[0][1]
+
+
+def test_listening_on_this_pc_only_without_a_public_url_says_no_worker_can_connect(tmp_path):
+    notes = notes_for(tmp_path, {"host": "127.0.0.1"})
+    assert [level for level, _ in notes] == [logging.WARNING]
+    assert "cannot connect" in notes[0][1] and "server.public_url" in notes[0][1]
+
+
+def test_an_api_the_network_can_reach_without_a_token_is_warned_about(tmp_path):
+    for server in ({"host": "0.0.0.0"}, {"host": "127.0.0.1", "public_url": "http://pc1.example.com"}):  # direct / proxied
+        warnings = [text for level, text in notes_for(tmp_path, server, token="") if level == logging.WARNING]
+        assert any("without a token" in text for text in warnings), server
+    assert notes_for(tmp_path, {"host": "0.0.0.0"}) == []  # on the network with a token: nothing to say
+    only = notes_for(tmp_path, {"host": "127.0.0.1"}, token="")  # nobody can reach it at all: the token is no issue
+    assert not any("without a token" in text for _, text in only)
 
 
 def test_the_three_pages_and_the_assets_are_served(app_url):

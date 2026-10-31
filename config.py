@@ -3,7 +3,7 @@
     {
       "paths":    { "alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml" },
       "checker":  { "skip_workflow_check": true },
-      "server":   { "host": "0.0.0.0", "port": 8080 },
+      "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com" },
       "ui":       { "product": "SST" },
       "database": { "path": "data/queue.db" },
       "tasks":    { "monitor_interval_s": 60, "worker_offline_after_s": 60, "assigned_timeout_s": 300,
@@ -13,11 +13,16 @@
 paths.alarm_map             AlarmIdMapping.xml used by recipe_checker (Rule / Action / BinOrToken lookups); the copy
                             that ships with the app lives in DpcConfig/V1.00 next to this file
 checker.skip_workflow_check true = do not require the Workflow files to exist on this machine
-server.*                    where the web app listens (restart needed); 127.0.0.1 = this PC only, 0.0.0.0 = the whole
-                            network - needed when PC2 workers connect from other machines.  The web pages have NO
-                            login: anyone who can reach the port can upload recipes, queue checks and read the queue,
-                            so keep the app on a trusted network (firewall) and set tasks.api_token for the API.
-                            The app never opens a browser by itself
+server.host / server.port   where the web app listens (restart needed).  127.0.0.1 = this PC only: right when a reverse
+                            proxy on this PC (IIS) publishes the app, nothing else can reach the port.  0.0.0.0 = the
+                            whole network: only for workers that connect to the port directly (it then needs a
+                            firewall rule).  The app never opens a browser by itself
+server.public_url           the address the workers and the users reach the app at - the site the reverse proxy
+                            publishes, e.g. http://ppv-pcs1stop-ss.intel.com (a host name and maybe a port, no folder).
+                            build_worker_package.py puts it into the PC2 package.  Empty = a direct connection to
+                            http://<this PC's name>:<server.port>.  The web pages have NO login: whoever can reach
+                            that address can upload recipes, queue checks and read the queue, so keep it on a trusted
+                            network and set tasks.api_token for the API
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
@@ -47,6 +52,7 @@ import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG_PATH = HERE / "config.json"
@@ -57,7 +63,7 @@ PRODUCTS = ("SST", "HST")
 DEFAULTS: dict[str, dict[str, Any]] = {
     "paths": {"alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml"},  # the copy next to config.json, no C:\ needed
     "checker": {"skip_workflow_check": True},
-    "server": {"host": "127.0.0.1", "port": 8080},  # (0.0.0.0 is needed for workers on other PCs - see above)
+    "server": {"host": "127.0.0.1", "port": 8080, "public_url": ""},  # (how workers on other PCs get in: see above)
     "ui": {"product": PRODUCTS[0]},
     "database": {"path": "data/queue.db"},
     "tasks": {
@@ -109,6 +115,24 @@ def _merge(dst: dict, src: dict) -> None:
             dst[k] = v
 
 
+def is_site_address(url: str) -> bool:
+    """``http://host`` or ``https://host:port``: a scheme, a host name and nothing after it - the app is published at the
+    root of its site, a folder in the address would break its links."""
+    try:
+        parts = urlsplit(url)
+        parts.port  # (raises ValueError for a port that is not a number or out of range)
+    except ValueError:
+        return False
+    return (
+        parts.scheme in ("http", "https")
+        and bool(parts.hostname)
+        and "@" not in parts.netloc
+        and not parts.path.strip("/")
+        and not parts.query
+        and not parts.fragment
+    )
+
+
 def _validate(data: dict, where: str) -> None:
     def expect(section: str, key: str, types: tuple, what: str) -> Any:
         v = data[section][key]
@@ -122,6 +146,12 @@ def _validate(data: dict, where: str) -> None:
     port = expect("server", "port", (int,), "a whole number between 1 and 65535")
     if not 1 <= port <= 65535:
         raise ConfigError(f'{where}: "server.port" must be between 1 and 65535, got {port}')
+    public_url = expect("server", "public_url", (str,), "a web address like http://pc1.example.com, or empty").strip()
+    if public_url and not is_site_address(public_url):
+        raise ConfigError(
+            f'{where}: "server.public_url" must look like http://host or http://host:port (no folder after it), '
+            f"got {json.dumps(public_url)}"
+        )
     product = expect("ui", "product", (str,), "SST or HST")
     if product.strip().upper() not in PRODUCTS:
         raise ConfigError(f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}')
@@ -245,6 +275,11 @@ class Settings:
     @property
     def port(self) -> int:
         return self.data["server"]["port"]
+
+    @property
+    def public_url(self) -> str:
+        """The address the workers reach the app at (the reverse proxy's site, no trailing slash); '' when not set."""
+        return self.data["server"]["public_url"].strip().rstrip("/")
 
     @property
     def product(self) -> str:

@@ -22,14 +22,16 @@ uv sync
 uv run app.py                    # or: uv run app.py --config other.json
 ```
 
-Open <http://localhost:8080> (the app never opens a browser by itself). Everything is configured in `config.json`
-(see the top of `config.py` for every key); every path in it is relative to the folder of `config.json`:
+Open <http://localhost:8007> on that PC, or <http://ppv-pcs1stop-ss.intel.com> from any PC (the app never opens a browser
+by itself). Everything is configured in `config.json` (see the top of `config.py` for every key); every path in it is
+relative to the folder of `config.json`:
 
 | key | meaning |
 | --- | --- |
 | `paths.alarm_map` | the `AlarmIdMapping.xml` that `recipe_checker` uses. The copy that ships with the app is `DpcConfig/V1.00/AlarmIdMapping.xml` - nothing outside this folder (no `C:\DpcConfig`) is needed. For another version put the file there and change the path |
 | `checker.skip_workflow_check` | `true` = `recipe_checker` does not require the Workflow files to exist on PC1 (the workers check them) |
-| `server.host` / `server.port` | where the app listens: `0.0.0.0` (as shipped) = reachable from other PCs, which the PC2 workers need; `127.0.0.1` = this PC only. Read *Security* below |
+| `server.host` / `server.port` | where the app listens (restart needed). As shipped `127.0.0.1:8007` = this PC only, which is right behind IIS. `0.0.0.0` = the whole network - only for workers that connect to the port directly (that needs a firewall rule) |
+| `server.public_url` | the address the workers and the users reach the app at: the IIS site, `http://ppv-pcs1stop-ss.intel.com`. `build_worker_package.py` puts it into the PC2 package. Empty = `http://<this PC>:<port>` (a direct connection). Read *Security* below |
 | `ui.product` | `SST` or `HST` - the Product box (remembered here) |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
@@ -43,6 +45,16 @@ Changing the Product box saves `config.json` again, but reads it first and chang
 token that `build_worker_package.py --rotate-token` wrote meanwhile - is kept. (A `config.json` that is broken at that
 moment is left alone, and the page says so.)
 
+**Published through IIS.** The app listens on `127.0.0.1:8007` only; IIS (URL Rewrite + ARR) publishes it at
+`http://ppv-pcs1stop-ss.intel.com` on port 80, and that address is what the users and the workers use. The port itself is
+not reachable from other PCs, so **no firewall rule is needed**. Workers never follow a redirect (their token would
+travel with it), so `server_url` must be the final address: do not redirect `/api` from HTTP to HTTPS - or put the
+`https://` address into `server.public_url` and rebuild the package.
+
+**After a restart.** The token does not change (it is in `config.json` on PC1 and in `worker_config.json` on PC2). PC1:
+the app does not start by itself - run `uv run app.py` again; the queue survives and the workers reconnect on their own.
+PC2: the worker starts again when the user who installed it logs on.
+
 ## Deploy a worker on PC2
 
 The worker is one stand-alone Python file (Python 3.10+, no packages). `deploy/build_worker_package.py` makes the folder
@@ -50,18 +62,19 @@ and zip to copy to PC2, with PC1's address and the API token already filled in.
 
 **1. On PC1, once**
 
-* Let the port through the firewall: `deploy\open_firewall_pc1.ps1` (PowerShell *as administrator*; add
-  `-RemoteAddress 10.1.2.3,10.1.2.4` to allow only your PC2 machines; `-Remove` takes the rule away). The script owns one
-  rule (internal name `PCS1Stop-PC1-Inbound`) and changes it in place when you run it again; it never touches other rules.
-* Start the app (`uv run app.py`). It must listen on `0.0.0.0` - the shipped `config.json` does.
+Start the app (`uv run app.py`) and keep it running, then open <http://ppv-pcs1stop-ss.intel.com/api/health> from another
+PC: it must show `{"status": "ok", ...}`. That is all - the app is reached through IIS, so there is nothing to open in
+the firewall.
 
 **2. Build the package** (again whenever the address or the token changes)
 
 ```powershell
-uv run python deploy/build_worker_package.py --server http://pc1-name:8080
+uv run python deploy/build_worker_package.py
 ```
 
-writes `dist\PCS1Stop_worker\` and `dist\PCS1Stop_worker.zip`. Without `--server` the address is this PC's full name.
+writes `dist\PCS1Stop_worker\` and `dist\PCS1Stop_worker.zip`. The address in the package is `server.public_url` of
+`config.json`; `--server http://other-address` overrides it. If the app listens on this PC only and there is no
+`public_url`, there is no address PC2 could use and the build stops and says so.
 Other options: `--rotate-token` (make a new token, save it in `config.json` *and* put it in the package - restart PC1 and
 redeploy the workers afterwards), `--allowed-root FOLDER` (repeatable: the folders and shares a check may look at),
 `--out DIR`. The package holds the API token: treat the zip like a password.
@@ -81,26 +94,28 @@ Copy the zip, unzip it somewhere permanent (for example `D:\PCS1StopWorker`) and
 3. creates the scheduled task **PCS1Stop Worker** - starts at every logon, runs without a window, restarted every minute
    if it stops - and starts it.
 
-Then `http://pc1-name:8080/workers` lists the PC as ONLINE. There is one worker per PC: installing again (from a new
+Then <http://ppv-pcs1stop-ss.intel.com/workers> lists the PC as ONLINE. There is one worker per PC: installing again (from a new
 copy of the package, say) replaces the installed one - the script says which one it replaces. Also in the folder:
 `uninstall.bat` (removes the task and stops the worker - only when it was installed from *that* folder, so an old copy
 cannot remove the worker of a newer one; `uninstall.bat -Force` removes it anyway), `run.bat` (runs the worker in a window
 with the first Python 3.10+ it finds; `run.bat --check` only tests the connection), `README.txt`.
 
-Good to know: the worker runs *as the user who installed it*, and a mapped drive such as `M:\` exists only for a
+Good to know: the worker runs *as the user who installed it*, and a mapped drive such as `Y:\` or `X:\` exists only for a
 logged-on user - so install it as the user who has the drives, or use `\\server\share` paths. Checks that say
-`Not found` for paths that do exist almost always mean the worker's user cannot see that drive or share.
+`Not found` for paths that do exist almost always mean the worker's user cannot see that drive or share
+(`run.bat --check` and `install.bat` warn when `Y:` or `X:` is missing).
 
 `worker_config.json` (PC2):
 
 | key | meaning |
 | --- | --- |
-| `server_url`, `api_token` | where PC1 is, and its `tasks.api_token` |
+| `server_url`, `api_token` | where PC1 is (the IIS address), and its `tasks.api_token` |
 | `hostname` | name on the Workers page (empty = this machine's name). Run **one agent per hostname** |
 | `poll_interval_s` / `heartbeat_interval_s` | 10 / 20 seconds |
 | `request_timeout_s` / `task_timeout_s` | one HTTP call (15) / one task (120) |
 | `max_backoff_s` / `max_delivery_s` | longest wait while PC1 is down (60) / how long a finished result is retried (3600) |
-| `allowed_roots` | folders and shares a check may look at, e.g. `["M:\\pcs", "\\\\fileserver\\recipes"]`; empty = anywhere. Anything else fails with `not allowed` |
+| `allowed_roots` | folders and shares a check may look at, e.g. `["Y:\\pcs", "X:\\pcs", "\\\\fileserver\\recipes"]`; empty = anywhere. It is judged on the path *after* the drive mapping (so list `Y:` / `X:`, not `M:`). Anything else fails with `not allowed` |
+| `drive_map` | per product, the drive a recipe names -> the drive this PC has it as. Shipped: `{"SST": {"M": "Y"}, "HST": {"M": "X"}}` (see *Workflow path checks*); `{}` = every path is looked up as written |
 | `max_stuck_tasks` | a check on a share that does not answer cannot be interrupted; after this many such stuck checks (8) the agent takes no new tasks until some are done |
 | `log_file` | `worker.log` next to the agent (rotating), empty = console only. A wrong setting is also written there |
 
@@ -119,8 +134,19 @@ is added or changed, and when the Product box changes, every path that has not b
 {"path": "M:\\pcs\\prod\\workflows\\SST_PowerCycle.xml", "product": "SST"}
 ```
 
-where `product` is the value of the Product box (`SST` / `HST`). The worker answers with
-`{"path", "product", "exists", "is_file", "size", "modified"}` and the read-only **Check** column shows
+where `product` is the value of the Product box (`SST` / `HST`). The recipe names the file on the drive `M:`, but PC2 has
+that share under another letter depending on the product, so **the worker maps the drive before it looks**:
+
+| product | the recipe says | the worker looks at |
+| --- | --- | --- |
+| `SST` | `M:\pcs\prod\workflows\SST_PowerCycle.xml` | `Y:\pcs\prod\workflows\SST_PowerCycle.xml` |
+| `HST` | `M:\pcs\prod\workflows\HST_PowerCycle.xml` | `X:\pcs\prod\workflows\HST_PowerCycle.xml` |
+
+Only the drive letter changes (`m:` / `M:/...` count too); a path on another drive, a `\\server\share\...` path, and
+`M:file` without a slash stay as written. The map is `drive_map` in `worker_config.json`, so another letter is a one-line
+edit on PC2. The worker answers with `{"path", "product", "exists", "is_file", "size", "modified"}` - `path` is what the
+recipe says, and `checked_path` (only when the drive was mapped) is the path that was really looked at; the Tasks page
+shows both. The read-only **Check** column shows
 `OK (24.1 KB)`, `Not found`, `Not a file`, `Failed: ...` or `Timeout: ...`, and `Queued`, `Assigned: PC2` or
 `Checking: PC2` while a task is on its way. The two icons in the toolbar open the Tasks and Workers pages in a new tab.
 
@@ -174,9 +200,10 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
 
 ## Security
 
-* **The web pages have no login.** Whoever can reach the port can upload recipes, queue path checks and read the queue.
-  The shipped `config.json` listens on `0.0.0.0` so that the workers can connect: keep the port off untrusted networks
-  (firewall, `-RemoteAddress`), or set `server.host` to `127.0.0.1` when no worker is used.
+* **The web pages have no login.** Whoever can reach the site (`http://ppv-pcs1stop-ss.intel.com`) can upload recipes,
+  queue path checks and read the queue. The app listens on `127.0.0.1` only, so IIS is the one way in: restrict there who
+  may use the site (IP restrictions, authentication) if the whole network should not. Leave `/api` reachable for the
+  workers - they identify themselves with the API token only, not with a Windows login.
 * `tasks.api_token` protects the **worker API** (`/api`), not the pages. Workers prove themselves with that shared
   token and their hostname; it is not a per-worker credential. `config.json` and the worker package hold it:
   keep both out of source control and chat. Rotate it with `build_worker_package.py --rotate-token`.
@@ -199,7 +226,7 @@ scheduler/monitor.py    runs the timeout monitor every 60 s
 ui/                     recipe_page (the editor), tasks_page, workers_page
 recipe/                 model.py (editable tables, undo, export), validation.py, recipe_checker.py
 worker/                 worker_agent.py + worker_config.json (stand-alone; the template of the PC2 package)
-deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts), open_firewall_pc1.ps1
+deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts)
 dist/                   the built PC2 package (git-ignored: it holds the API token)
 static/                 pcs_grid.js, pcs.css, ops.css
 tests/                  uv run pytest   (Python 3.10+)

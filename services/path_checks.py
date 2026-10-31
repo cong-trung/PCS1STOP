@@ -1,8 +1,10 @@
 """The ``check_path`` task: ask a PC2 worker whether a recipe's workflow file can be reached from that machine.
 
 * the task payload is ``{"path": <Workflow Path>, "product": "SST" | "HST"}``
-* the worker's result is ``{"path", "product", "exists", "is_file", "size", "modified", "detail"?}``; a file that
-  is simply not there is a *result* (``exists: false``), not a failure - FAILED is for a worker that could not look
+* the worker's result is ``{"path", "product", "exists", "is_file", "size", "modified", "detail"?, "checked_path"?}``; a file
+  that is simply not there is a *result* (``exists: false``), not a failure - FAILED is for a worker that could not look.
+  The worker maps the recipe's drive M: before it looks (SST -> Y:, HST -> X:): ``path`` is what the recipe says and
+  ``checked_path`` the one it looked at, present only when they differ
 
 Only plain data and text in here: ``describe_check`` turns a task into the text of the recipe page's Check column and
 ``PathCheckTracker`` follows the tasks of one open recipe.  The first word of that text is what ``pcs.checkKind`` in

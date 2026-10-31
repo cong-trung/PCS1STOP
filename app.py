@@ -86,6 +86,27 @@ def run_options(settings: Settings) -> dict:
     }
 
 
+def reachability_notes(settings: Settings) -> list[tuple[int, str]]:
+    """What the log says about who can reach the app, as (log level, message).  Listening on this PC only is right
+    when a reverse proxy publishes the app (``server.public_url``); without one no worker on another PC can connect."""
+    local = settings.host in LOCAL_HOSTS
+    notes: list[tuple[int, str]] = []
+    if local and settings.public_url:
+        notes.append((
+            logging.INFO,
+            f"listening on {settings.host}:{settings.port} (this PC only) - the workers connect through {settings.public_url}",
+        ))
+    elif local:
+        notes.append((
+            logging.WARNING,
+            f"listening on {settings.host} only and server.public_url is not set - workers on other PCs cannot connect; "
+            "publish the app through a reverse proxy and set server.public_url in config.json (or set server.host to 0.0.0.0)",
+        ))
+    if (not local or settings.public_url) and not settings.api_token:
+        notes.append((logging.WARNING, "the API is open to the network without a token - set tasks.api_token in config.json"))
+    return notes
+
+
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     try:
@@ -111,13 +132,8 @@ def main(argv: list[str] | None = None) -> None:
         )
     else:
         log.info("alarm map: %s", settings.alarm_map)
-    if settings.host in LOCAL_HOSTS:
-        log.warning(
-            "listening on %s only - workers on other PCs cannot connect; set server.host to 0.0.0.0 in config.json",
-            settings.host,
-        )
-    elif not settings.api_token:
-        log.warning("the API is open to the network without a token - set tasks.api_token in config.json")
+    for level, message in reachability_notes(settings):
+        log.log(level, "%s", message)
     ui.run(**run_options(settings))
 
 

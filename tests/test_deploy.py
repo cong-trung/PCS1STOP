@@ -220,7 +220,8 @@ def test_rotate_token_makes_a_new_token_for_pc1_and_the_package(pc1_config, tmp_
     saved = json.loads(pc1_config.read_text(encoding="utf-8"))
     assert first != TOKEN and len(first) == 43 and first.isascii()
     assert saved["tasks"]["api_token"] == first  # PC1 and PC2 hold the same one
-    assert saved["server"] == {"host": "0.0.0.0", "port": 8123} and saved["ui"]["product"] == "HST"  # nothing else moved
+    assert saved["server"]["host"] == "0.0.0.0" and saved["server"]["port"] == 8123  # nothing else moved
+    assert saved["ui"]["product"] == "HST"
 
     build(pc1_config, tmp_path, "--rotate-token")
     second = package_settings(folder)["api_token"]
@@ -268,11 +269,70 @@ def test_a_server_address_must_be_a_url(pc1_config, tmp_path, capsys, server):
 
 
 def test_the_default_address_is_this_pc_and_the_port_of_the_config(pc1_config, tmp_path, monkeypatch):
+    """An app that listens on the network and has no public address is reached at its own port."""
     monkeypatch.setattr(bwp.socket, "getfqdn", lambda: "PC1.Corp.Example.COM")
     assert bwp.default_server_url(8123) == "http://pc1.corp.example.com:8123"
     out = tmp_path / "dist"
     assert bwp.main(["--config", str(pc1_config), "--out", str(out)]) == 0
     assert package_settings(out / bwp.PACKAGE)["server_url"] == "http://pc1.corp.example.com:8123"
+
+
+# ------------------------------------------- an app on this PC only, published by a reverse proxy (IIS)
+SITE = "http://ppv-pcs1stop-ss.intel.com"
+
+
+def proxied_config(tmp_path: Path, **server) -> Path:
+    """A PC1 settings file whose app listens on this PC only (port 8007), plus whatever ``server`` adds."""
+    path = tmp_path / "pc1" / "config.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps({"server": {"host": "127.0.0.1", "port": 8007, **server}, "tasks": {"api_token": TOKEN}}),
+                    encoding="utf-8")
+    return path
+
+
+def test_the_default_address_is_the_public_url_of_the_config(tmp_path, capsys):
+    out = tmp_path / "dist"
+    assert bwp.main(["--config", str(proxied_config(tmp_path, public_url=SITE + "/")), "--out", str(out)]) == 0
+    folder = out / bwp.PACKAGE
+    assert package_settings(folder)["server_url"] == SITE  # the site, not host:8007; no trailing slash
+    assert f"{SITE}/workers" in (folder / "README.txt").read_text(encoding="ascii")
+    said = capsys.readouterr().out
+    assert SITE in said and "reverse proxy" in said
+    assert "firewall" not in said.lower()  # nothing to open: the app is reached through the web site
+
+
+def test_an_app_on_this_pc_only_with_no_public_url_gives_pc2_nothing_to_connect_to(tmp_path, capsys):
+    out = tmp_path / "dist"
+    assert bwp.main(["--config", str(proxied_config(tmp_path)), "--out", str(out)]) == 2
+    assert "server.public_url" in capsys.readouterr().err
+    assert not out.exists()  # nothing was built
+
+
+def test_the_server_option_beats_the_public_url(tmp_path):
+    out = tmp_path / "dist"
+    config = proxied_config(tmp_path, public_url=SITE)
+    assert bwp.main(["--config", str(config), "--out", str(out), "--server", "http://other.example.com:9000"]) == 0
+    assert package_settings(out / bwp.PACKAGE)["server_url"] == "http://other.example.com:9000"
+
+
+def test_a_public_url_that_is_localhost_is_refused_like_any_other_localhost_address(tmp_path, capsys):
+    config = proxied_config(tmp_path, public_url="http://localhost")
+    assert bwp.main(["--config", str(config), "--out", str(tmp_path / "dist")]) == 2
+    assert "cannot reach" in capsys.readouterr().err
+
+
+def test_the_shipped_config_builds_a_package_that_pc2_can_use(tmp_path):
+    """``uv run python deploy/build_worker_package.py`` with the project's own config.json, as it is (only the output
+    goes somewhere else)."""
+    from config import DEFAULT_CONFIG_PATH, Settings
+
+    shipped = Settings(DEFAULT_CONFIG_PATH)
+    out = tmp_path / "dist"
+    assert bwp.main(["--config", str(DEFAULT_CONFIG_PATH), "--out", str(out)]) == 0
+    settings = package_settings(out / bwp.PACKAGE)
+    assert settings["api_token"] == shipped.api_token  # the same token on both sides
+    assert settings["server_url"] == (shipped.public_url or bwp.default_server_url(shipped.port))
+    assert not settings["server_url"].startswith(("http://127.0.0.1", "http://localhost"))
 
 
 def test_a_trailing_slash_is_dropped():
@@ -373,7 +433,7 @@ def task_exists(name: str) -> bool:
 
 @needs_powershell
 def test_every_powershell_script_parses(unzipped):
-    scripts = [unzipped / "install.ps1", unzipped / "uninstall.ps1", ROOT / "deploy" / "open_firewall_pc1.ps1"]
+    scripts = [unzipped / "install.ps1", unzipped / "uninstall.ps1"]
     command = (
         "$bad = 0; foreach ($f in @(" + ",".join(f"'{s}'" for s in scripts) + ")) { $t = $null; $e = $null; "
         "[void][System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$t, [ref]$e); "

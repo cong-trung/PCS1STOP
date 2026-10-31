@@ -216,6 +216,144 @@ def test_a_refused_path_fails_the_task_through_the_whole_stack(live, services, t
     assert services.tasks.get_task(ok).result["exists"] is False  # (the file is not there - but it was looked for)
 
 
+# ----------------------------------------------------------------------------- drive_map (M: -> Y: / X:)
+needs_drives = pytest.mark.skipif(os.name != "nt", reason="drive letters are Windows paths")
+
+
+def real_drive(folder) -> str:
+    """The drive letter of a test folder, e.g. "C" - the drive that stands in for Y: / X: on this "PC2"."""
+    drive = os.path.splitdrive(str(folder))[0][:1]
+    if not drive.isalpha():
+        pytest.skip("the test folder is not on a lettered drive")
+    return drive.upper()
+
+
+def as_on_m(path) -> str:
+    """The same file as a recipe names it: on the drive M:."""
+    return "M:" + os.path.splitdrive(str(path))[1]
+
+
+@pytest.mark.parametrize(
+    ("path", "product", "mapped"),
+    [
+        (r"M:\pcs\prod\wf.xml", "SST", r"Y:\pcs\prod\wf.xml"),
+        (r"M:\pcs\prod\wf.xml", "HST", r"X:\pcs\prod\wf.xml"),
+        (r"m:\pcs\wf.xml", "sst", r"Y:\pcs\wf.xml"),  # the drive letter and the product in any case
+        ("M:/pcs/wf.xml", "HST", "X:/pcs/wf.xml"),  # the rest is kept exactly as written
+        ("M:\\", "SST", "Y:\\"),  # the whole drive
+        ("M:", "HST", "X:"),
+        (r"M:pcs\wf.xml", "SST", r"M:pcs\wf.xml"),  # drive-relative (whatever the current folder of M: is): left alone
+        (r"D:\pcs\wf.xml", "SST", r"D:\pcs\wf.xml"),  # another drive
+        (r"C:\M:\x.xml", "HST", r"C:\M:\x.xml"),  # an "M:" in the middle is nothing
+        (r"\\srv\share\M:\x.xml", "SST", r"\\srv\share\M:\x.xml"),  # a share
+        (r"\\srv\M\x.xml", "SST", r"\\srv\M\x.xml"),
+        (r"M:\pcs\wf.xml", "XYZ", r"M:\pcs\wf.xml"),  # a product without an entry
+        (r"Y:\pcs\wf.xml", "SST", r"Y:\pcs\wf.xml"),  # already the mapped drive: not mapped again
+        ("", "SST", ""),
+        ("x.xml", "SST", "x.xml"),
+    ],
+)
+def test_the_drive_of_a_recipe_is_mapped_per_product(path, product, mapped):
+    assert wa.map_drive(path, product, wa.DEFAULT_DRIVE_MAP) == mapped
+
+
+def test_a_drive_is_replaced_once_and_not_looked_up_again():
+    chained = {"SST": {"M": "Y", "Y": "Z"}}
+    assert wa.map_drive(r"M:\a.xml", "SST", chained) == r"Y:\a.xml"
+    assert wa.map_drive(r"Y:\a.xml", "SST", chained) == r"Z:\a.xml"
+
+
+def test_the_drive_map_is_a_setting(tmp_path):
+    path = tmp_path / "w.json"
+    path.write_text(json.dumps({"server_url": "http://pc1:9000", "drive_map": {"sst": {"m": "z", "N:": "w"}}}))
+    config = WorkerConfig.load(path)
+    assert wa.map_drive(r"M:\a.xml", "SST", config.drive_map) == r"Z:\a.xml"
+    assert wa.map_drive(r"N:\a.xml", "SST", config.drive_map) == r"W:\a.xml"
+    assert wa.map_drive(r"M:\a.xml", "HST", config.drive_map) == r"M:\a.xml"  # this file has no entry for HST
+
+
+def test_the_shipped_drive_map_is_sst_y_and_hst_x():
+    shipped = WorkerConfig.load()  # worker/worker_config.json, the template of the PC2 package
+    expected = {"SST": {"M": "Y"}, "HST": {"M": "X"}}
+    assert wa.normalized_drive_map(shipped.drive_map) == expected
+    assert wa.normalized_drive_map(WorkerConfig().drive_map) == expected  # the same when there is no file at all
+
+
+def test_an_empty_drive_map_leaves_every_path_alone():
+    config = make_config("http://127.0.0.1:1", drive_map={})
+    assert wa.map_drive(r"M:\a.xml", "SST", config.drive_map) == r"M:\a.xml"
+
+
+@pytest.mark.parametrize(
+    "drive_map",
+    [[], "M:Y:", {"SST": ["M", "Y"]}, {"SST": {"MM": "Y"}}, {"SST": {"M": "YY"}}, {"SST": {"M": 5}}, {"SST": {"1": "Y"}},
+     {"": {"M": "Y"}}, {"SST": {"M": "Y"}, "sst": {"M": "X"}}, {"SST": {"M": "Y", "m": "X"}}],
+)
+def test_a_wrong_drive_map_is_refused(drive_map):
+    with pytest.raises(ConfigProblem, match="drive_map"):
+        WorkerConfig(drive_map=drive_map).validate()
+
+
+@needs_drives
+def test_check_path_looks_at_the_mapped_drive(tmp_path):
+    target = tmp_path / "SST_PowerCycle.xml"
+    target.write_text("<Workflow/>")
+    drives = {"SST": {"M": real_drive(tmp_path)}}  # a recipe's M: is the drive of the test folder on this "PC2"
+
+    result = wa.check_path({"path": as_on_m(target), "product": "SST"}, drive_map=drives)
+
+    assert result["exists"] is True and result["size"] == len("<Workflow/>")
+    assert result["path"] == as_on_m(target)  # what the recipe says ...
+    assert result["checked_path"].lower() == str(target).lower()  # ... and what was looked at
+
+
+@needs_drives
+def test_allowed_roots_are_judged_on_the_path_that_is_really_looked_at(tmp_path):
+    target = tmp_path / "a.xml"
+    target.write_text("<x/>")
+    drives = {"SST": {"M": real_drive(tmp_path)}}
+    payload = {"path": as_on_m(target), "product": "SST"}
+
+    assert wa.check_path(payload, [str(tmp_path)], drives)["exists"] is True  # the real folder is what is listed
+    with pytest.raises(TaskError, match="not allowed") as refused:
+        wa.check_path(payload, [as_on_m(tmp_path)], drives)  # a root on M: lists a place that is never looked at
+    assert "the recipe says" in str(refused.value)
+
+
+@needs_drives
+def test_the_default_handlers_map_the_drive(tmp_path):
+    (tmp_path / "a.xml").write_text("<x/>")
+    handler = wa.default_handlers(make_config("http://127.0.0.1:1", drive_map={"HST": {"M": real_drive(tmp_path)}}))["check_path"]
+    result = handler({"path": as_on_m(tmp_path / "a.xml"), "product": "HST"})
+    assert result["exists"] is True and result["checked_path"].lower() == str(tmp_path / "a.xml").lower()
+
+
+@needs_drives
+def test_the_mapped_drive_works_through_the_whole_stack(live, services, tmp_path):
+    (tmp_path / "wf.xml").write_text("<x/>")
+    task = queue_check(services, as_on_m(tmp_path / "wf.xml"), "SST")
+    with Running(make_config(live.url, drive_map={"SST": {"M": real_drive(tmp_path)}})):
+        wait_for(lambda: status_of(services, task) is TaskStatus.COMPLETED, what="the checked task")
+    result = services.tasks.get_task(task).result
+    assert result["exists"] is True and result["checked_path"].lower() == str(tmp_path / "wf.xml").lower()
+
+
+@needs_drives
+def test_check_reports_the_drive_map_and_the_drives_it_leads_to(live, tmp_path):
+    here = real_drive(tmp_path)
+    gone = next(letter for letter in "ZYXWVUTSRQPONMLKJIHGFED" if letter != here and not os.path.exists(f"{letter}:\\"))
+    code, report = report_of(make_config(live.url, drive_map={"SST": {"M": here}, "HST": {"M": gone}}))
+    assert code == 0  # a drive that is not there is a warning, not a failed install
+    assert f"Drive map:       SST M: -> {here}:, HST M: -> {gone}:" in report
+    assert f"[ ok ] SST: M:\\ is looked up as {here}:\\" in report
+    assert f"[warn] HST: M:\\ is looked up as {gone}:\\ - this PC has no drive {gone}:" in report
+
+
+def test_check_says_when_there_is_no_drive_map(live):
+    code, report = report_of(make_config(live.url, drive_map={}))
+    assert code == 0 and "Drive map:       none" in report
+
+
 # ------------------------------------------------------------------------------------- configuration
 def test_config_defaults_are_valid():
     config = WorkerConfig()
@@ -664,9 +802,12 @@ def test_check_says_when_the_api_token_is_missing_or_wrong(live, services, token
 
 
 def test_check_says_when_pc1_cannot_be_reached():
-    code, report = report_of(make_config(f"http://127.0.0.1:{free_port()}", request_timeout_s=2))
+    url = f"http://127.0.0.1:{free_port()}"
+    code, report = report_of(make_config(url, request_timeout_s=2))
     assert code == 1
-    assert "[FAIL] cannot reach PC1" in report and "0.0.0.0" in report and "firewall" in report
+    assert "[FAIL] cannot reach PC1" in report and "server_url" in report
+    assert f"{url}/api/health" in report  # the address to try in a browser
+    assert "firewall" not in report and "0.0.0.0" not in report  # (PC1 is reached through its web site, not its port)
 
 
 def test_check_says_when_something_else_answers(live):

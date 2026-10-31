@@ -2,10 +2,10 @@
 """Builds the package that is copied to PC2: the worker agent, its settings (PC1's address and the API token) and the
 scripts that install it.
 
-    uv run python deploy/build_worker_package.py                        # PC1 = this PC, token from config.json
-    uv run python deploy/build_worker_package.py --server http://pc1:8080
+    uv run python deploy/build_worker_package.py                        # PC1 = server.public_url of config.json
+    uv run python deploy/build_worker_package.py --server http://pc1.example.com
     uv run python deploy/build_worker_package.py --rotate-token         # new token: saved in config.json, used here
-    uv run python deploy/build_worker_package.py --allowed-root "M:\\pcs" --allowed-root "\\\\fileserver\\recipes"
+    uv run python deploy/build_worker_package.py --allowed-root "Y:\\pcs" --allowed-root "X:\\pcs" --allowed-root "\\\\fileserver\\recipes"
 
 Result: ``dist/PCS1Stop_worker/`` and ``dist/PCS1Stop_worker.zip``.  Copy the zip to PC2, unzip it somewhere permanent
 and double-click ``install.bat``.  The package holds PC1's API token - treat it like a password.
@@ -49,20 +49,34 @@ class BuildError(Exception):
 
 
 def default_server_url(port: int) -> str:
-    """PC1 as the other PCs know it: the full name of this machine."""
+    """PC1 as the other PCs know it when the app is reached at its own port: the full name of this machine."""
     host = socket.getfqdn() or socket.gethostname()
     return f"http://{host.lower()}:{port}"
 
 
+def choose_server_url(settings: Settings) -> str:
+    """PC1 as PC2 reaches it when ``--server`` is not given: ``server.public_url`` (the reverse proxy's site); without
+    one this PC's name and the port, which only works while the app listens on the network (``server.host`` 0.0.0.0)."""
+    if settings.public_url:
+        return settings.public_url
+    if settings.host in LOCAL_HOSTS:
+        raise BuildError(
+            f"the app listens on {settings.host} only, so PC2 cannot reach it - set server.public_url in config.json to "
+            "the address the reverse proxy publishes it at (for example http://pc1.example.com), or give it with --server"
+        )
+    return default_server_url(settings.port)
+
+
 def check_server_url(url: str, *, allow_local: bool = False) -> str:
-    """``http://host:port`` without a trailing slash; PC2 cannot reach "localhost", so that is refused."""
+    """``http://host[:port]`` without a trailing slash; PC2 cannot reach "localhost", so that is refused."""
     text = url.strip()
     parts = urlsplit(text)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise BuildError(f"--server must look like http://host:port, got {url!r}")
     if parts.hostname.lower() in LOCAL_HOSTS and not allow_local:
         raise BuildError(
-            "PC2 cannot reach 'localhost' - give the name or address of PC1 with --server, e.g. --server http://pc1:8080"
+            "PC2 cannot reach 'localhost' - use the address PC2 reaches PC1 at (server.public_url in config.json or "
+            "--server), e.g. http://pc1.example.com"
         )
     return text.rstrip("/")
 
@@ -196,7 +210,8 @@ def build_package(
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="Build the worker package for PC2")
     ap.add_argument("--config", default=str(ROOT / "config.json"), help="PC1's settings file (default: ../config.json)")
-    ap.add_argument("--server", metavar="URL", help="PC1 as PC2 reaches it, e.g. http://pc1:8080 (default: this PC)")
+    ap.add_argument("--server", metavar="URL",
+                    help="PC1 as PC2 reaches it, e.g. http://pc1.example.com (default: server.public_url of config.json)")
     ap.add_argument("--out", default=str(ROOT / "dist"), help="where the package is written (default: ../dist)")
     ap.add_argument("--rotate-token", action="store_true", help="make a new API token and save it in PC1's config.json")
     ap.add_argument("--allowed-root", action="append", default=[], metavar="FOLDER",
@@ -213,7 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise BuildError(f"{config_path} does not exist")
         settings = Settings(config_path)
         server_url = check_server_url(
-            args.server if args.server is not None else default_server_url(settings.port), allow_local=args.allow_local
+            args.server if args.server is not None else choose_server_url(settings), allow_local=args.allow_local
         )
         token = new_token() if args.rotate_token else settings.api_token
         if not token:
@@ -245,9 +260,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"  folders: {', '.join(roots) if roots else 'any (set --allowed-root to limit what a recipe can make PC2 look at)'}")
     print()
     print("Next: copy the zip to PC2, unzip it somewhere permanent and double-click install.bat.")
-    if settings.host in {"127.0.0.1", "localhost", "::1"}:
-        print(f"NOTE: PC1 listens on {settings.host} only - set server.host to 0.0.0.0 in {config_path.name} and restart it.")
-    print("PC1's firewall must let the port in: deploy\\open_firewall_pc1.ps1 (run as administrator).")
+    if settings.host in LOCAL_HOSTS:
+        print(f"NOTE: the app listens on {settings.host}:{settings.port} (this PC only), so {server_url} has to be the "
+              "reverse proxy that forwards to it.")
     return 0
 
 
