@@ -47,7 +47,9 @@ moment is left alone, and the page says so.)
 
 **Published through IIS.** The app listens on `127.0.0.1:8007` only; IIS (URL Rewrite + ARR) publishes it at
 `http://ppv-pcs1stop-ss.intel.com` on port 80, and that address is what the users and the workers use. The port itself is
-not reachable from other PCs, so **no firewall rule is needed**. Workers never follow a redirect (their token would
+not reachable from other PCs, so **no firewall rule is needed**. The site's `web.config` is `deploy/iis/web.config` (one
+rewrite rule to `http://127.0.0.1:8007` - change the port there if you change `server.port`): copy it into the site's
+folder. Workers never follow a redirect (their token would
 travel with it), so `server_url` must be the final address: do not redirect `/api` from HTTP to HTTPS - or put the
 `https://` address into `server.public_url` and rebuild the package.
 
@@ -226,7 +228,7 @@ scheduler/monitor.py    runs the timeout monitor every 60 s
 ui/                     recipe_page (the editor), tasks_page, workers_page
 recipe/                 model.py (editable tables, undo, export), validation.py, recipe_checker.py
 worker/                 worker_agent.py + worker_config.json (stand-alone; the template of the PC2 package)
-deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts)
+deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts), iis/web.config
 dist/                   the built PC2 package (git-ignored: it holds the API token)
 static/                 pcs_grid.js, pcs.css, ops.css
 tests/                  uv run pytest   (Python 3.10+)
