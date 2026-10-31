@@ -19,7 +19,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from nicegui import app, ui
+from nicegui import app, core, ui
 from sqlalchemy.exc import SQLAlchemyError
 
 from api import install_api
@@ -81,6 +81,15 @@ def configure_transport(settings: Settings) -> None:
     app.config.socket_io_js_transports = ["websocket", "polling"] if settings.websocket else ["polling"]
 
 
+def configure_compression(settings: Settings) -> None:
+    """Nothing the app sends is compressed unless ``server.compression`` is on.  The socket.io engine gzips every polling
+    response of 1 KB or more by itself (NiceGUI's own gzip of the pages is switched off in ``run_options``); behind IIS,
+    which compresses once more, that makes two layers.  The browser undoes only one of them, the NiceGUI connection
+    receives binary garbage, drops the session and reconnects for ever - every big update (a recipe's tables) is lost,
+    small ones get through."""
+    core.sio.eio.http_compression = settings.compression
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="PCS 1-Stop (NiceGUI + task queue)")
     ap.add_argument(
@@ -93,7 +102,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def run_options(settings: Settings) -> dict:
     """The arguments ``ui.run`` is started with."""
-    return {
+    options = {
         "host": settings.host,
         "port": settings.port,
         "title": "PCS Recipe Checker",
@@ -103,6 +112,10 @@ def run_options(settings: Settings) -> dict:
         "uvicorn_logging_level": "warning",  # one access-log line per worker poll would drown everything else
         "favicon": "🧾",
     }
+    if not settings.compression:
+        # NiceGUI gzips its pages by default (the socket.io engine's own gzip is switched off in configure_compression)
+        options["gzip_middleware_factory"] = None
+    return options
 
 
 def reachability_notes(settings: Settings) -> list[tuple[int, str]]:
@@ -154,7 +167,9 @@ def main(argv: list[str] | None = None) -> None:
     for level, message in reachability_notes(settings):
         log.log(level, "%s", message)
     configure_transport(settings)
+    configure_compression(settings)
     log.info("browsers connect by %s", "WebSocket, polling as the fallback" if settings.websocket else "HTTP polling only")
+    log.info("responses are %s", "gzipped by the app" if settings.compression else "sent plain (a reverse proxy may compress them)")
     ui.run(**run_options(settings))
 
 

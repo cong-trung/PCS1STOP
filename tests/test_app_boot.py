@@ -138,6 +138,29 @@ def test_the_transport_follows_the_websocket_setting(tmp_path):
         nicegui_app.config.socket_io_js_transports = original
 
 
+def test_nothing_is_compressed_unless_server_compression_is_on(tmp_path):
+    """Behind IIS (which compresses too) a response compressed by the app as well is compressed twice and unreadable."""
+    import app as pcs_app
+    from config import Settings
+    from nicegui import core
+
+    path = tmp_path / "config.json"
+    original = core.sio.eio.http_compression
+    try:
+        path.write_text(json.dumps({"server": {"compression": False}}), encoding="utf-8")
+        settings = Settings(path)
+        assert pcs_app.run_options(settings)["gzip_middleware_factory"] is None  # NiceGUI's gzip of the pages is off ...
+        pcs_app.configure_compression(settings)
+        assert core.sio.eio.http_compression is False  # ... and so is the socket.io engine's gzip of the polling responses
+        path.write_text(json.dumps({"server": {"compression": True}}), encoding="utf-8")
+        settings = Settings(path)
+        assert "gzip_middleware_factory" not in pcs_app.run_options(settings)  # NiceGUI's default stays
+        pcs_app.configure_compression(settings)
+        assert core.sio.eio.http_compression is True
+    finally:
+        core.sio.eio.http_compression = original
+
+
 def test_the_session_race_traceback_is_kept_out_of_the_log():
     import app as pcs_app
 

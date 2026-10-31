@@ -116,6 +116,13 @@ def test_the_browsers_use_polling_unless_websocket_is_switched_on(tmp_path):
         Settings(write(tmp_path / "d.json", {"server": {"websocket": "yes"}}))
 
 
+def test_the_app_compresses_nothing_unless_asked(tmp_path):
+    assert Settings(write(tmp_path / "a.json", {})).compression is False  # also a config.json written before the setting existed
+    assert Settings(write(tmp_path / "b.json", {"server": {"compression": True}})).compression is True
+    with pytest.raises(ConfigError, match="server.compression"):
+        Settings(write(tmp_path / "c.json", {"server": {"compression": "gzip"}}))
+
+
 def test_the_shipped_config_can_be_reached_by_the_workers():
     """Listening on this PC only is right behind a reverse proxy (IIS) - but then the config has to say where the proxy
     publishes the app, or the package for PC2 has no address to connect to."""

@@ -3,7 +3,8 @@
     {
       "paths":    { "alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml" },
       "checker":  { "skip_workflow_check": true },
-      "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com", "websocket": false },
+      "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com", "websocket": false,
+                    "compression": false },
       "ui":       { "product": "SST" },
       "database": { "path": "data/queue.db" },
       "tasks":    { "monitor_interval_s": 60, "worker_offline_after_s": 60, "assigned_timeout_s": 300,
@@ -27,6 +28,11 @@ server.websocket            how the browsers stay connected to the app.  false (
                             behind every reverse proxy at once.  true = WebSocket first, polling as the fallback: lighter,
                             but a proxy that leaves the upgrade unanswered (IIS without its "WebSocket Protocol" feature)
                             makes every page sit dead for about 20 seconds before the browser falls back
+server.compression          true = the app compresses what it sends (right for a direct connection).  false (default) =
+                            nothing is compressed by the app: NiceGUI gzips its pages and the socket.io engine gzips its
+                            polling responses of 1 KB or more, and behind a reverse proxy that compresses by itself (IIS)
+                            that makes two layers - the browser undoes only one, the NiceGUI connection receives binary
+                            garbage and every big update (a recipe's tables) is lost
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
@@ -67,7 +73,7 @@ PRODUCTS = ("SST", "HST")
 DEFAULTS: dict[str, dict[str, Any]] = {
     "paths": {"alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml"},  # the copy next to config.json, no C:\ needed
     "checker": {"skip_workflow_check": True},
-    "server": {"host": "127.0.0.1", "port": 8080, "public_url": "", "websocket": False},  # (see above)
+    "server": {"host": "127.0.0.1", "port": 8080, "public_url": "", "websocket": False, "compression": False},  # (see above)
     "ui": {"product": PRODUCTS[0]},
     "database": {"path": "data/queue.db"},
     "tasks": {
@@ -157,6 +163,7 @@ def _validate(data: dict, where: str) -> None:
             f"got {json.dumps(public_url)}"
         )
     expect("server", "websocket", (bool,), "true or false")
+    expect("server", "compression", (bool,), "true or false")
     product = expect("ui", "product", (str,), "SST or HST")
     if product.strip().upper() not in PRODUCTS:
         raise ConfigError(f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}')
@@ -290,6 +297,11 @@ class Settings:
     def websocket(self) -> bool:
         """True = the browsers try a WebSocket first; False = they use HTTP polling only."""
         return self.data["server"]["websocket"]
+
+    @property
+    def compression(self) -> bool:
+        """True = the app gzips its own responses; False = it sends them plain (a reverse proxy may compress)."""
+        return self.data["server"]["compression"]
 
     @property
     def product(self) -> str:
