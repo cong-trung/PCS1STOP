@@ -1,4 +1,5 @@
 """Pieces every page shares: look & feel, toast messages and the navigation bar."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +11,7 @@ TEAL = "#0F7D86"
 
 #: (label, url, icon) of the pages
 PAGES = (
-    ("Recipe", "/", "description"),
+    ("PCS die file", "/", "description"),
     ("Tasks", "/tasks", "list_alt"),
     ("Workers", "/workers", "dns"),
 )
@@ -27,7 +28,11 @@ def add_assets(*names: str) -> None:
     tags = []
     for name in names:
         url = f"/pcs/{name}?v={version}"
-        tags.append(f'<script src="{url}"></script>' if name.endswith(".js") else f'<link rel="stylesheet" href="{url}">')
+        tags.append(
+            f'<script src="{url}"></script>'
+            if name.endswith(".js")
+            else f'<link rel="stylesheet" href="{url}">'
+        )
     ui.add_head_html("".join(tags))
 
 
@@ -44,10 +49,12 @@ def notify(message: str, kind: str = "info") -> None:
 
 
 def nav_bar(active: str) -> None:
-    """Teal bar with the page links (Recipe / Tasks / Workers) of the operations pages."""
+    """Teal bar with the page links (PCS die file / Tasks / Workers) of the operations pages."""
     with ui.row().classes("ops-nav w-full items-center no-wrap"):
         ui.label("PCS 1-Stop").classes("ops-title")
         for label, url, icon in PAGES:
-            with ui.link(target=url).classes("ops-link" + (" active" if label == active else "")):
+            with ui.link(target=url).classes(
+                "ops-link" + (" active" if label == active else "")
+            ):
                 ui.icon(icon).classes("text-lg")
                 ui.label(label)

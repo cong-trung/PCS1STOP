@@ -1,8 +1,8 @@
-"""Thin adapter around ``recipe_checker`` (the Python port of the iLLIAD checker).
+"""Thin adapter around ``pcs_die_file_checker`` (the Python port of the iLLIAD checker).
 
-``check_recipe_string`` only reports problems as formatted text blocks.  This module runs it on the *edited*
-recipe text and additionally maps every block that belongs to an XOFYBIN rule to that rule's ``RuleName`` so
-the grid can show a per-row "Validation Error".  Nothing in recipe_checker.py is modified or duplicated.
+``check_pcs_die_file_string`` only reports problems as formatted text blocks.  This module runs it on the *edited*
+pcs_die_file text and additionally maps every block that belongs to an XOFYBIN rule to that rule's ``RuleName`` so
+the grid can show a per-row "Validation Error".  Nothing in pcs_die_file_checker.py is modified or duplicated.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from recipe import recipe_checker as rc
+from pcs_die_file import pcs_die_file_checker as rc
 
 
 @dataclass
@@ -28,7 +28,7 @@ _RULE_NAME = re.compile(r'RuleName="([^"]*)"')
 
 
 def _split_blocks(errors) -> tuple[dict[str, list[str]], int]:
-    """Parse RecipeErrorTracker.accumulated: ' Recipe Node: ...\\n<xml>\\n Errors:\\n     msg\\n     msg'."""
+    """Parse PcsDieFileErrorTracker.accumulated: ' PCS die file Node: ...\\n<xml>\\n Errors:\\n     msg\\n     msg'."""
     per_rule: dict[str, list[str]] = {}
     total = 0
     for block in errors.accumulated:
@@ -44,8 +44,9 @@ def _split_blocks(errors) -> tuple[dict[str, list[str]], int]:
     return per_rule, total
 
 
-def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workflow_check: bool = True) -> CheckResult:
-    """Run recipe_checker on ``xml_text``.  The paths/options come from the caller (config.json), none live here."""
+def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workflow_check: bool = True,
+              bin_digit_exceptions: dict | None = None) -> CheckResult:
+    """Run pcs_die_file_checker on ``xml_text``.  The paths/options come from the caller (config.json), none live here."""
     t0 = time.perf_counter()
     warnings: list[str] = []
     try:
@@ -53,8 +54,8 @@ def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workf
         if amap is None:
             warnings.append(f"Alarm map not found ({alarm_map_path or 'no path set'}): Rule/Action lookups will fail. "
                             'Set "paths.alarm_map" in config.json.')
-            amap = rc.AlarmIdMap()  # what recipe_checker.main() does
-        data, errors = rc.check_recipe_string(filename, xml_text, amap, skip_workflow_check)
+            amap = rc.AlarmIdMap()  # what pcs_die_file_checker.main() does
+        data, errors = rc.check_pcs_die_file_string(filename, xml_text, amap, skip_workflow_check, bin_digit_exceptions)
         err_text = errors.get_accumulated_error_string()
         per_rule, total = _split_blocks(errors)
     except Exception as e:  # noqa: BLE001 - the checker is user code; never take the UI down with it
@@ -67,7 +68,7 @@ def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workf
     if err_text:
         parts.append(err_text)
     else:
-        parts.append(f"No errors found in recipe: {filename}")
+        parts.append(f"No errors found in pcs_die_file: {filename}")
         if data is not None:
             parts.append(rc.next_valid_overflow_token(data, amap).rstrip())
     return CheckResult(text="\n".join(parts), ok=not err_text, n_errors=total, per_rule=per_rule,

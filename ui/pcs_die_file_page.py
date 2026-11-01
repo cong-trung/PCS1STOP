@@ -1,12 +1,12 @@
-"""The recipe page - NiceGUI edition of the old WinForms window (same look, same behaviour as PCS1Stop).
+"""The pcs_die_file page - NiceGUI edition of the old WinForms window (same look, same behaviour as PCS1Stop).
 
-Flow: Browse (upload a recipe XML) -> tables are parsed out and checked with recipe_checker -> turn Edit on, change
+Flow: Browse (upload a pcs_die_file XML) -> tables are parsed out and checked with pcs_die_file_checker -> turn Edit on, change
 cells (Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+Z / Ctrl+Y all work), add rows to the XOFYBIN / List Workflow tables (Add row)
 and delete rows (trash icon) -> Save downloads the edited XML.
 
-The recipe is checked again a moment after every change; Save stays disabled while the check reports errors.
+The pcs_die_file is checked again a moment after every change; Save stays disabled while the check reports errors.
 
-The workflow paths are always checked, nobody has to ask: when a recipe is opened, when a path is added or changed,
+The workflow paths are always checked, nobody has to ask: when a pcs_die_file is opened, when a path is added or changed,
 and when the Product box changes, every path that has not been checked yet goes to a PC2 worker as one ``check_path``
 task.  The task payload is the Path plus the Product box value (SST / HST); the worker's answer shows in the read-only
 Check column.  The answers are information only - they never block Save.
@@ -22,8 +22,8 @@ import time
 from nicegui import events, run, ui
 
 from config import PRODUCTS, ConfigError, Settings
-from recipe import validation as rv
-from recipe.model import (
+from pcs_die_file import validation as rv
+from pcs_die_file.model import (
     ADD_ROW_TABLES,
     COLUMNS,
     DELETE_ROW_TABLES,
@@ -31,8 +31,8 @@ from recipe.model import (
     CellEdit,
     CellUpdate,
     EditResult,
-    RecipeDoc,
-    RecipeError,
+    PcsDieFileDoc,
+    PcsDieFileError,
 )
 from services import Services
 from services import path_checks as pc
@@ -41,7 +41,7 @@ from .common import TEAL, add_assets, notify
 
 log = logging.getLogger("pcs.ui")
 
-#: seconds the recipe has to stay untouched before it is checked again
+#: seconds the pcs_die_file has to stay untouched before it is checked again
 RECHECK_DELAY = 0.8
 #: seconds between two looks at the path-check tasks while some are unfinished
 PATH_POLL_SECONDS = 1.5
@@ -129,36 +129,44 @@ def column_defs(table: str) -> list[dict]:
     return defs
 
 
-class RecipePage:
+class PcsDieFilePage:
     """One browser tab = one instance (own document, own undo stack)."""
 
     def __init__(self, services: Services, settings: Settings) -> None:
         self.services = services
         self.cfg = settings
-        self.doc: RecipeDoc | None = None
+        self.doc: PcsDieFileDoc | None = None
         self.edit_mode = False
         self.busy = False
         self.product = settings.product
         self.check: rv.CheckResult | None = None  # the last finished check ...
-        self.checked_doc: RecipeDoc | None = None  # ... of this document ...
+        self.checked_doc: PcsDieFileDoc | None = None  # ... of this document ...
         self.checked_rev = -1  # ... as it was in this revision
         self.recheck_at: float | None = (
             None  # monotonic time at which the automatic re-check is due
         )
         self.check_lock = asyncio.Lock()
         # the workflow path checks (see the module docstring)
-        self.tracker: pc.PathCheckTracker | None = None  # follows the tasks of the open recipe for the current product
-        self.paths_at: float | None = None  # monotonic time at which new paths are due to be sent to a worker
+        self.tracker: pc.PathCheckTracker | None = (
+            None  # follows the tasks of the open pcs_die_file for the current product
+        )
+        self.paths_at: float | None = (
+            None  # monotonic time at which new paths are due to be sent to a worker
+        )
         self.next_poll = 0.0  # monotonic time of the next look at the unfinished tasks
-        self.path_lock = asyncio.Lock()  # one database round trip of the tracker at a time
-        self.path_failures = 0  # times in a row the queue could not be reached when the paths were sent
+        self.path_lock = (
+            asyncio.Lock()
+        )  # one database round trip of the tracker at a time
+        self.path_failures = (
+            0  # times in a row the queue could not be reached when the paths were sent
+        )
         self.report_paths = False  # True until the checks of an upload / product change have been reported
         self.grids: dict[str, ui.aggrid] = {}
         self.needs_doc: list = []
 
     # ------------------------------------------------------------------------------------- layout
     def build(self) -> None:
-        ui.page_title("PCS Recipe Checker")
+        ui.page_title("PCS Checker")
         ui.colors(primary=TEAL)
         add_assets("pcs.css", "pcs_grid.js")
         with ui.column().classes("pcs-root"):
@@ -193,7 +201,7 @@ class RecipePage:
                 )
                 return b
 
-            tool("folder_open", "Open recipe (Ctrl+O)", "amber-9").on(
+            tool("folder_open", "Open pcs_die_file (Ctrl+O)", "amber-9").on(
                 "click", js_handler="() => pcs.pickFile()"
             )
             self.tb_edit = tool(
@@ -210,7 +218,7 @@ class RecipePage:
             )
             self.tb_validate = tool(
                 "fact_check",
-                "Validate with recipe_checker",
+                "Validate with pcs_die_file_checker",
                 "teal-8",
                 on_click=lambda: self.validate(),
             )
@@ -241,7 +249,9 @@ class RecipePage:
                 )
                 .props("dense outlined options-dense")
                 .classes("pcs-product")
-                .tooltip("Product: SST or HST - sent to the workers with every path check")
+                .tooltip(
+                    "Product: SST or HST - sent to the workers with every path check"
+                )
             )
 
     def _path_row(self) -> None:
@@ -267,7 +277,7 @@ class RecipePage:
 
     def _action_row(self) -> None:
         with ui.row().classes("pcs-actions w-full items-center no-wrap"):
-            self.info_label = ui.label("No recipe loaded - click Browse.").classes(
+            self.info_label = ui.label("No pcs_die_file loaded - click Browse.").classes(
                 "pcs-info"
             )
             ui.space()
@@ -305,7 +315,7 @@ class RecipePage:
             "tooltipShowDelay": 500,
             "suppressFieldDotNotation": True,
             "animateRows": False,
-            "overlayNoRowsTemplate": '<span class="pcs-empty">Click Browse and pick a recipe XML to load it here.</span>',
+            "overlayNoRowsTemplate": '<span class="pcs-empty">Click Browse and pick a pcs_die_file XML to load it here.</span>',
         }
         grid = (
             ui.aggrid(options, theme="balham")
@@ -363,7 +373,7 @@ class RecipePage:
                 self.err_pane = ui.element("div").classes("w-full h-full")
                 with self.err_pane:
                     self.err_text = ui.label(
-                        "Open a recipe to see the recipe_checker output here."
+                        "Open a pcs_die_file to see the pcs_die_file_checker output here."
                     ).classes("pcs-errtext")
                 self.err_pane.set_visibility(False)
 
@@ -392,7 +402,7 @@ class RecipePage:
     # ------------------------------------------------------------------------------------- state helpers
     @property
     def can_save(self) -> bool:
-        """Saving is allowed while the last check of the open recipe found no errors."""
+        """Saving is allowed while the last check of the open pcs_die_file found no errors."""
         return self.doc is not None and self.check is not None and self.check.ok
 
     def refresh_buttons(self) -> None:
@@ -421,7 +431,7 @@ class RecipePage:
         self.mode_label.set_text("EDIT MODE" if on else "")
 
     def on_product(self, e: events.ValueChangeEventArguments) -> None:
-        """Remember the chosen product (SST / HST).  A check is about one product, so the open recipe's paths are
+        """Remember the chosen product (SST / HST).  A check is about one product, so the open pcs_die_file's paths are
         checked again for the new one."""
         self.product = e.value
         try:
@@ -496,10 +506,10 @@ class RecipePage:
         return self.cfg
 
     def loading(self) -> bool:
-        """True while a recipe is being opened (the user is told): the grids still show the previous one, so nothing
+        """True while a pcs_die_file is being opened (the user is told): the grids still show the previous one, so nothing
         may be applied to the document until the new rows are in."""
         if self.busy:
-            notify("A recipe is being opened - one moment.", "info")
+            notify("A pcs_die_file is being opened - one moment.", "info")
         return self.busy
 
     # ------------------------------------------------------------------------------------- loading
@@ -519,7 +529,10 @@ class RecipePage:
         name, data = e.file.name, await e.file.read()
         self.upload.reset()
         if self.busy:
-            notify(f"A recipe is still being opened - open {name} again in a moment.", "warning")
+            notify(
+                f"A pcs_die_file is still being opened - open {name} again in a moment.",
+                "warning",
+            )
             return
         if (
             self.doc is not None
@@ -533,10 +546,13 @@ class RecipePage:
         await self.load(data, name)
 
     async def load(self, data: bytes, name: str) -> None:
-        """Open a recipe, one at a time: until its rows are in the grids they still show the previous recipe, so a second
+        """Open a pcs_die_file, one at a time: until its rows are in the grids they still show the previous pcs_die_file, so a second
         upload (or an edit) in between would mix the two up - ``busy`` stays on until everything is in place."""
         if self.busy:
-            notify(f"A recipe is still being opened - open {name} again in a moment.", "warning")
+            notify(
+                f"A pcs_die_file is still being opened - open {name} again in a moment.",
+                "warning",
+            )
             return
         self.busy = True
         try:
@@ -548,8 +564,8 @@ class RecipePage:
         self.set_progress(self.parse_bar, True)
         self.parse_label.set_text(f"Parsing {name} ...")
         try:
-            doc = await run.io_bound(RecipeDoc, data, name)
-        except RecipeError as ex:
+            doc = await run.io_bound(PcsDieFileDoc, data, name)
+        except PcsDieFileError as ex:
             self.parse_label.set_text("Parse failed")
             notify(f"{name}: {ex}", "negative")
             return
@@ -560,7 +576,9 @@ class RecipePage:
         finally:
             self.set_progress(self.parse_bar, False)
         self.doc, self.edit_mode = doc, False
-        self.tracker = pc.PathCheckTracker(self.services.tasks, self.product)  # (the old file's checks are let go)
+        self.tracker = pc.PathCheckTracker(
+            self.services.tasks, self.product
+        )  # (the old file's checks are let go)
         self.paths_at, self.report_paths, self.path_failures = None, True, 0
         self.check, self.checked_doc, self.checked_rev, self.recheck_at = (
             None,
@@ -571,7 +589,9 @@ class RecipePage:
         ui.run_javascript("pcs.setEditMode(false); pcs.setDirty(false); pcs.reset()")
         self.path_input.set_value(name)
         await self.run_validation(initial=True)
-        await self.sync_path_checks(initial=True)  # before the rows are built: they start out showing "Queued"
+        await self.sync_path_checks(
+            initial=True
+        )  # before the rows are built: they start out showing "Queued"
         for table in TABLES:
             self.grids[table].run_grid_method(
                 "setGridOption", "rowData", doc.rows(table)
@@ -583,13 +603,13 @@ class RecipePage:
 
     # ------------------------------------------------------------------------------------- validation
     def is_stale(self) -> bool:
-        """True when the open recipe has changed since the last finished check."""
+        """True when the open pcs_die_file has changed since the last finished check."""
         return self.doc is not None and (
             self.checked_doc is not self.doc or self.checked_rev != self.doc.revision
         )
 
     async def recheck_tick(self) -> None:
-        """Timer: check the recipe again once it has been left alone for RECHECK_DELAY seconds."""
+        """Timer: check the pcs_die_file again once it has been left alone for RECHECK_DELAY seconds."""
         if (
             self.recheck_at is None
             or time.monotonic() < self.recheck_at
@@ -616,6 +636,7 @@ class RecipePage:
                     doc.filename,
                     cfg.alarm_map,
                     cfg.skip_workflow_check,
+                    cfg.bin_digit_exceptions,
                 )
             finally:
                 self.set_progress(self.val_bar, False)
@@ -645,7 +666,7 @@ class RecipePage:
         if self.loading():
             return
         if self.doc is None:
-            notify("Load a recipe first.", "warning")
+            notify("Load a pcs_die_file first.", "warning")
             return
         self.recheck_at = None
         await self.run_validation()
@@ -671,7 +692,11 @@ class RecipePage:
         if self.paths_at is not None and now >= self.paths_at:
             self.paths_at = None
             await self.sync_path_checks()
-        elif self.tracker is not None and self.tracker.unfinished and now >= self.next_poll:
+        elif (
+            self.tracker is not None
+            and self.tracker.unfinished
+            and now >= self.next_poll
+        ):
             self.next_poll = now + PATH_POLL_SECONDS
             await self.poll_path_checks()
 
@@ -687,22 +712,40 @@ class RecipePage:
                 return
             announce = self.report_paths
             try:
-                online = await run.io_bound(self.services.workers.count_online) if announce else 1
+                online = (
+                    await run.io_bound(self.services.workers.count_online)
+                    if announce
+                    else 1
+                )
                 await run.io_bound(tracker.sync, new)
-            except Exception as ex:  # noqa: BLE001 - the queue (database) is unavailable; editing must go on
-                if self.doc is doc and self.tracker is tracker:  # (not when another file was opened / the product changed)
+            except Exception as ex:
+                if (
+                    self.doc is doc and self.tracker is tracker
+                ):  # (not when another file was opened / the product changed)
                     self.path_failures += 1
-                    delay = PATH_RETRY_SECONDS[min(self.path_failures, len(PATH_RETRY_SECONDS)) - 1]
+                    delay = PATH_RETRY_SECONDS[
+                        min(self.path_failures, len(PATH_RETRY_SECONDS)) - 1
+                    ]
                     log.warning(
                         "could not queue the path checks (%d in a row) - trying again in %d s: %s",
-                        self.path_failures, delay, ex, exc_info=self.path_failures == 1,
+                        self.path_failures,
+                        delay,
+                        ex,
+                        exc_info=self.path_failures == 1,
                     )
-                    if self.paths_at is None:  # (an edit that came meanwhile has set a sooner time already)
+                    if (
+                        self.paths_at is None
+                    ):  # (an edit that came meanwhile has set a sooner time already)
                         self.schedule_path_checks(delay)
                     if self.path_failures == 1:  # say it once, not at every retry
-                        notify(f"Could not queue the path checks: {ex} - trying again in a few seconds.", "negative")
+                        notify(
+                            f"Could not queue the path checks: {ex} - trying again in a few seconds.",
+                            "negative",
+                        )
                 return
-            if self.doc is not doc or self.tracker is not tracker:  # another file was opened / the product changed
+            if (
+                self.doc is not doc or self.tracker is not tracker
+            ):  # another file was opened / the product changed
                 return
             self.path_failures = 0
             updates = doc.set_path_checks(tracker.texts)
@@ -725,7 +768,9 @@ class RecipePage:
             except Exception as ex:  # noqa: BLE001 - try again at the next tick
                 log.warning("could not read the path-check tasks: %s", ex)
                 return
-            if self.doc is not doc or self.tracker is not tracker:  # another file was opened / the product changed
+            if (
+                self.doc is not doc or self.tracker is not tracker
+            ):  # another file was opened / the product changed
                 return
             self.push(doc.set_path_checks(texts))
             if tracker.unfinished or not self.report_paths:
@@ -734,7 +779,9 @@ class RecipePage:
             shown = [texts[path] for path in doc.workflow_paths() if path in texts]
             notify(
                 f"Paths checked for {tracker.product}: {pc.summarize(shown)}",
-                "positive" if {pc.check_kind(text) for text in shown} <= {"ok"} else "warning",
+                "positive"
+                if {pc.check_kind(text) for text in shown} <= {"ok"}
+                else "warning",
             )
 
     # ------------------------------------------------------------------------------------- editing
@@ -747,7 +794,9 @@ class RecipePage:
 
     def on_cell_changed(self, table: str, e: events.GenericEventArguments) -> None:
         a = e.args
-        if self.doc is None or self.busy or a.get("source") == "pcs":  # (while busy the grid shows the old recipe)
+        if (
+            self.doc is None or self.busy or a.get("source") == "pcs"
+        ):  # (while busy the grid shows the old pcs_die_file)
             return
         value = "" if a.get("newValue") is None else str(a["newValue"])
         res = self.doc.apply_edits([CellEdit(table, a["rowId"], a["colId"], value)])
@@ -799,7 +848,7 @@ class RecipePage:
         table, after = e.args.get("table"), e.args.get("after")
         try:
             res = self.doc.add_row(table, after)
-        except RecipeError as ex:
+        except PcsDieFileError as ex:
             notify(str(ex), "warning")
             return
         if not self.edit_mode:  # adding a row means editing: switch Edit on instead of making the user find it
@@ -819,7 +868,7 @@ class RecipePage:
             return
         try:
             res = self.doc.delete_row(str(e.args.get("table")), str(e.args.get("id")))
-        except RecipeError as ex:
+        except PcsDieFileError as ex:
             notify(str(ex), "warning")
             return
         self.push_rows(res)
@@ -851,7 +900,7 @@ class RecipePage:
             return
         doc = self.doc
         if doc is None:
-            notify("Nothing to save - load a recipe first.", "warning")
+            notify("Nothing to save - load a pcs_die_file first.", "warning")
             return
         if (
             self.is_stale()
@@ -860,7 +909,7 @@ class RecipePage:
             await self.run_validation()
             if self.doc is not doc or self.is_stale():
                 notify(
-                    "The recipe changed while it was being checked - press Save again.",
+                    "The pcs_die_file changed while it was being checked - press Save again.",
                     "warning",
                 )
                 return
@@ -884,4 +933,4 @@ class RecipePage:
 def register(services: Services, settings: Settings) -> None:
     @ui.page("/")
     def index() -> None:
-        RecipePage(services, settings).build()
+        PcsDieFilePage(services, settings).build()

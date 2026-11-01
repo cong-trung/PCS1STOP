@@ -1,11 +1,11 @@
 # PCS 1-Stop (v2)
 
-The PCS recipe editor (NiceGUI) with the PC1 / PC2 worker architecture of `architect.md`.
+The PCS pcs_die_file editor (NiceGUI) with the PC1 / PC2 worker architecture of `architect.md`.
 
 ```
    PC1 (this app)                                          PC2 (worker/worker_agent.py)
 +---------------------------+      HTTP, every 10 s      +---------------------------+
-| NiceGUI   recipe editor   | <------------------------- | Worker agent              |
+| NiceGUI   pcs_die_file editor   | <------------------------- | Worker agent              |
 |           Tasks / Workers |   GET  /api/task/next      |  - asks for work          |
 | FastAPI   /api/...        |   POST /api/task/start     |  - looks at the share     |
 | SQLite    data/queue.db   |   POST /api/task/complete  |  - reports the result     |
@@ -28,19 +28,20 @@ relative to the folder of `config.json`:
 
 | key | meaning |
 | --- | --- |
-| `paths.alarm_map` | the `AlarmIdMapping.xml` that `recipe_checker` uses. The copy that ships with the app is `DpcConfig/V1.00/AlarmIdMapping.xml` - nothing outside this folder (no `C:\DpcConfig`) is needed. For another version put the file there and change the path |
-| `checker.skip_workflow_check` | `true` = `recipe_checker` does not require the Workflow files to exist on PC1 (the workers check them) |
+| `paths.alarm_map` | the `AlarmIdMapping.xml` that `pcs_die_file_checker` uses. The copy that ships with the app is `DpcConfig/V1.00/AlarmIdMapping.xml` - nothing outside this folder (no `C:\DpcConfig`) is needed. For another version put the file there and change the path |
+| `checker.bin_digit_exceptions` | Bin numbers allowed although they break the digit rule (`FB` needs 4 digits, `IB` 2, `DB` 8); default `IB: [9]`, `FB: [100, 500, 600, 700]`, `DB: [1000000, 5000000, 6000000, 7000000]` |
+| `checker.skip_workflow_check` | `true` = `pcs_die_file_checker` does not require the Workflow files to exist on PC1 (the workers check them) |
 | `server.host` / `server.port` | where the app listens (restart needed). As shipped `127.0.0.1:8007` = this PC only, which is right behind IIS. `0.0.0.0` = the whole network - only for workers that connect to the port directly (that needs a firewall rule) |
 | `server.public_url` | the address the workers and the users reach the app at: the IIS site, `http://ppv-pcs1stop-ss.intel.com`. `build_worker_package.py` puts it into the PC2 package. Empty = `http://<this PC>:<port>` (a direct connection). Read *Security* below |
-| `server.websocket` | how the browsers stay connected. `false` (default, as shipped) = plain HTTP polling, which works behind every reverse proxy at once. `true` = WebSocket first, polling as the fallback: lighter, but IIS + ARR often cannot relay it - the browser then waits about 20 s before it falls back, or keeps retrying the WebSocket - and the Recipe, Tasks and Workers pages stay empty meanwhile |
-| `server.compression` | `false` (default, as shipped) = the app compresses nothing: NiceGUI gzips its pages and the socket.io engine gzips every polling response of 1 KB or more, and behind IIS, which compresses by itself, that makes two layers. The browser undoes only one, the NiceGUI connection receives binary garbage, drops the session and reconnects for ever - small updates get through, every big one (a recipe's tables) is lost. `true` = the app compresses (a direct connection without a proxy) |
+| `server.websocket` | how the browsers stay connected. `false` (default, as shipped) = plain HTTP polling, which works behind every reverse proxy at once. `true` = WebSocket first, polling as the fallback: lighter, but IIS + ARR often cannot relay it - the browser then waits about 20 s before it falls back, or keeps retrying the WebSocket - and the PCS die file, Tasks and Workers pages stay empty meanwhile |
+| `server.compression` | `false` (default, as shipped) = the app compresses nothing: NiceGUI gzips its pages and the socket.io engine gzips every polling response of 1 KB or more, and behind IIS, which compresses by itself, that makes two layers. The browser undoes only one, the NiceGUI connection receives binary garbage, drops the session and reconnects for ever - small updates get through, every big one (a pcs_die_file's tables) is lost. `true` = the app compresses (a direct connection without a proxy) |
 | `ui.product` | `SST` or `HST` - the Product box (remembered here) |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
 | `tasks.ui_refresh_s` | refresh of the Tasks and Workers pages (5) |
 | `tasks.api_token` | the secret the workers send as `X-API-Token` (every `/api` call except `/api/health` needs it). Set in the shipped file; plain ASCII |
 
-Pages: `/` recipe editor, `/tasks` the queue (filters, click a row for payload / result / error), `/workers` the PC2 machines.
+Pages: `/` pcs_die_file editor, `/tasks` the queue (filters, click a row for payload / result / error), `/workers` the PC2 machines.
 Logs go to the console and `data/pcs1stop.log`; at start-up the log says which alarm map is in use.
 Settings are read once at start-up, except `paths.*` and `checker.*`, which are picked up by the next validation.
 Changing the Product box saves `config.json` again, but reads it first and changes only `ui.product`: a hand edit - or a
@@ -121,8 +122,8 @@ logged-on user - so install it as the user who has the drives, or use `\\server\
 | `poll_interval_s` / `heartbeat_interval_s` | 10 / 20 seconds |
 | `request_timeout_s` / `task_timeout_s` | one HTTP call (15) / one task (120) |
 | `max_backoff_s` / `max_delivery_s` | longest wait while PC1 is down (60) / how long a finished result is retried (3600) |
-| `allowed_roots` | folders and shares a check may look at, e.g. `["Y:\\pcs", "X:\\pcs", "\\\\fileserver\\recipes"]`; empty = anywhere. It is judged on the path *after* the drive mapping (so list `Y:` / `X:`, not `M:`). Anything else fails with `not allowed` |
-| `drive_map` | per product, the drive a recipe names -> the drive this PC has it as. Shipped: `{"SST": {"M": "Y"}, "HST": {"M": "X"}}` (see *Workflow path checks*); `{}` = every path is looked up as written |
+| `allowed_roots` | folders and shares a check may look at, e.g. `["Y:\\pcs", "X:\\pcs", "\\\\fileserver\\pcs_die_files"]`; empty = anywhere. It is judged on the path *after* the drive mapping (so list `Y:` / `X:`, not `M:`). Anything else fails with `not allowed` |
+| `drive_map` | per product, the drive a pcs_die_file names -> the drive this PC has it as. Shipped: `{"SST": {"M": "Y"}, "HST": {"M": "X"}}` (see *Workflow path checks*); `{}` = every path is looked up as written |
 | `max_stuck_tasks` | a check on a share that does not answer cannot be interrupted; after this many such stuck checks (8) the agent takes no new tasks until some are done |
 | `log_file` | `worker.log` next to the agent (rotating), empty = console only. A wrong setting is also written there |
 
@@ -131,9 +132,9 @@ while a task runs, retries with back-off while PC1 is down and carries on by its
 could not deliver is delivered then). Command line: `python worker_agent.py [--config FILE] [--server URL]
 [--token TOKEN] [--hostname NAME] [--check] [-v]`.
 
-## Workflow path checks (recipe page -> worker)
+## Workflow path checks (pcs_die_file page -> worker)
 
-The paths in the *List Workflow* table are **always checked, nobody has to ask**: when a recipe is uploaded, when a path
+The paths in the *List Workflow* table are **always checked, nobody has to ask**: when a pcs_die_file is uploaded, when a path
 is added or changed, and when the Product box changes, every path that has not been checked yet goes to a worker as one
 `check_path` task. The payload is
 
@@ -141,10 +142,10 @@ is added or changed, and when the Product box changes, every path that has not b
 {"path": "M:\\pcs\\prod\\workflows\\SST_PowerCycle.xml", "product": "SST"}
 ```
 
-where `product` is the value of the Product box (`SST` / `HST`). The recipe names the file on the drive `M:`, but PC2 has
+where `product` is the value of the Product box (`SST` / `HST`). The pcs_die_file names the file on the drive `M:`, but PC2 has
 that share under another letter depending on the product, so **the worker maps the drive before it looks**:
 
-| product | the recipe says | the worker looks at |
+| product | the pcs_die_file says | the worker looks at |
 | --- | --- | --- |
 | `SST` | `M:\pcs\prod\workflows\SST_PowerCycle.xml` | `Y:\pcs\prod\workflows\SST_PowerCycle.xml` |
 | `HST` | `M:\pcs\prod\workflows\HST_PowerCycle.xml` | `X:\pcs\prod\workflows\HST_PowerCycle.xml` |
@@ -152,7 +153,7 @@ that share under another letter depending on the product, so **the worker maps t
 Only the drive letter changes (`m:` / `M:/...` count too); a path on another drive, a `\\server\share\...` path, and
 `M:file` without a slash stay as written. The map is `drive_map` in `worker_config.json`, so another letter is a one-line
 edit on PC2. The worker answers with `{"path", "product", "exists", "is_file", "size", "modified"}` - `path` is what the
-recipe says, and `checked_path` (only when the drive was mapped) is the path that was really looked at; the Tasks page
+pcs_die_file says, and `checked_path` (only when the drive was mapped) is the path that was really looked at; the Tasks page
 shows both. The read-only **Check** column shows
 `OK (24.1 KB)`, `Not found`, `Not a file`, `Failed: ...` or `Timeout: ...`, and `Queued`, `Assigned: PC2` or
 `Checking: PC2` while a task is on its way. The two icons in the toolbar open the Tasks and Workers pages in a new tab.
@@ -161,15 +162,15 @@ Things to know:
 
 * The answers are information only: they never block Save. A file that is not there is a *result* (`Not found`);
   `Failed` means the worker could not look (access denied, path not allowed, ...).
-* A path is asked about once however often the recipe is edited; a new path costs one task, nothing else is re-sent.
+* A path is asked about once however often the pcs_die_file is edited; a new path costs one task, nothing else is re-sent.
   To check everything again, upload the file again (or change the product and back).
 * With no worker online the cells say `Queued` and the page says so; the checks wait in the queue until a worker
-  connects. Tasks that are still waiting are shared: uploading the same recipe again (or opening it in a second tab)
+  connects. Tasks that are still waiting are shared: uploading the same pcs_die_file again (or opening it in a second tab)
   does not queue them twice.
 * If the queue (database) cannot be reached when the paths are sent, the page says so once and tries again by itself
-  after 5, 10, 20, 40, then every 60 seconds - nobody has to upload the recipe again. While a recipe is being opened the
-  page ignores edits and a second upload ("A recipe is being opened - one moment"), so the grids can never show one
-  recipe while the edits go to another.
+  after 5, 10, 20, 40, then every 60 seconds - nobody has to upload the pcs_die_file again. While a pcs_die_file is being opened the
+  page ignores edits and a second upload ("A pcs_die_file is being opened - one moment"), so the grids can never show one
+  pcs_die_file while the edits go to another.
 * The Product box applies to the checks: after it changes, every path is checked again for the new product.
 
 ## Task life cycle
@@ -207,7 +208,7 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
 
 ## Security
 
-* **The web pages have no login.** Whoever can reach the site (`http://ppv-pcs1stop-ss.intel.com`) can upload recipes,
+* **The web pages have no login.** Whoever can reach the site (`http://ppv-pcs1stop-ss.intel.com`) can upload pcs_die_files,
   queue path checks and read the queue. The app listens on `127.0.0.1` only, so IIS is the one way in: restrict there who
   may use the site (IP restrictions, authentication) if the whole network should not. Leave `/api` reachable for the
   workers - they identify themselves with the API token only, not with a Windows login.
@@ -216,8 +217,8 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
   keep both out of source control and chat. Rotate it with `build_worker_package.py --rotate-token`.
   The worker sends the token only to `server_url` itself: the connection test asks `/api/health` *without* it first, and
   a redirect is never followed (it would carry the token on to wherever it points).
-* A recipe can name any path, including `\\any-server\share\...` - a check makes the worker PC contact that server.
-  Set `allowed_roots` (`--allowed-root`) to the folders and shares your recipes really use.
+* A pcs_die_file can name any path, including `\\any-server\share\...` - a check makes the worker PC contact that server.
+  Set `allowed_roots` (`--allowed-root`) to the folders and shares your pcs_die_files really use.
 * Request bodies are size-checked before they are read, so a huge request is refused (413) with or without a token.
 
 ## Layout
@@ -225,13 +226,13 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
 ```
 app.py                  start-up: config, database, services, API, pages, scheduler
 config.py, config.json  every path and knob (paths are relative to config.json)
-DpcConfig/V1.00/        AlarmIdMapping.xml for the recipe checker
+DpcConfig/V1.00/        AlarmIdMapping.xml for the pcs_die_file checker
 database/               SQLAlchemy models, SQLite engine (WAL, BEGIN IMMEDIATE), init_db
 services/               task_service, worker_service, timeout_monitor (+ path_checks: the check_path task, its tracker)
 api/                    task_api, worker_api, schemas, token check, request-size limit
 scheduler/monitor.py    runs the timeout monitor every 60 s
-ui/                     recipe_page (the editor), tasks_page, workers_page
-recipe/                 model.py (editable tables, undo, export), validation.py, recipe_checker.py
+ui/                     pcs_die_file_page (the editor), tasks_page, workers_page
+pcs_die_file/                 model.py (editable tables, undo, export), validation.py, pcs_die_file_checker.py
 worker/                 worker_agent.py + worker_config.json (stand-alone; the template of the PC2 package)
 deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts), iis/web.config
 dist/                   the built PC2 package (git-ignored: it holds the API token)
@@ -239,5 +240,5 @@ static/                 pcs_grid.js, pcs.css, ops.css
 tests/                  uv run pytest   (Python 3.10+)
 ```
 
-`recipe/recipe_checker.py` is imported unchanged - replace the file to update the checker (its own command-line default
+`pcs_die_file/pcs_die_file_checker.py` is imported unchanged - replace the file to update the checker (its own command-line default
 `C:\DpcConfig\...` is not used by the app).

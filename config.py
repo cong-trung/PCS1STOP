@@ -11,8 +11,9 @@
                     "running_timeout_s": 3600, "ui_refresh_s": 5, "api_token": "" }
     }
 
-paths.alarm_map             AlarmIdMapping.xml used by recipe_checker (Rule / Action / BinOrToken lookups); the copy
+paths.alarm_map             AlarmIdMapping.xml used by pcs_die_file_checker (Rule / Action / BinOrToken lookups); the copy
                             that ships with the app lives in DpcConfig/V1.00 next to this file
+checker.bin_digit_exceptions bin numbers that may break the digit rule (FB 4 digits, IB 2, DB 8), e.g. {"FB": ["100"]}
 checker.skip_workflow_check true = do not require the Workflow files to exist on this machine
 server.host / server.port   where the web app listens (restart needed).  127.0.0.1 = this PC only: right when a reverse
                             proxy on this PC (IIS) publishes the app, nothing else can reach the port.  0.0.0.0 = the
@@ -22,7 +23,7 @@ server.public_url           the address the workers and the users reach the app 
                             publishes, e.g. http://ppv-pcs1stop-ss.intel.com (a host name and maybe a port, no folder).
                             build_worker_package.py puts it into the PC2 package.  Empty = a direct connection to
                             http://<this PC's name>:<server.port>.  The web pages have NO login: whoever can reach
-                            that address can upload recipes, queue checks and read the queue, so keep it on a trusted
+                            that address can upload pcs_die_files, queue checks and read the queue, so keep it on a trusted
                             network and set tasks.api_token for the API
 server.websocket            how the browsers stay connected to the app.  false (default) = plain HTTP polling, which works
                             behind every reverse proxy at once.  true = WebSocket first, polling as the fallback: lighter,
@@ -32,7 +33,7 @@ server.compression          true = the app compresses what it sends (right for a
                             nothing is compressed by the app: NiceGUI gzips its pages and the socket.io engine gzips its
                             polling responses of 1 KB or more, and behind a reverse proxy that compresses by itself (IIS)
                             that makes two layers - the browser undoes only one, the NiceGUI connection receives binary
-                            garbage and every big update (a recipe's tables) is lost
+                            garbage and every big update (a pcs_die_file's tables) is lost
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
@@ -72,7 +73,14 @@ PRODUCTS = ("SST", "HST")
 
 DEFAULTS: dict[str, dict[str, Any]] = {
     "paths": {"alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml"},  # the copy next to config.json, no C:\ needed
-    "checker": {"skip_workflow_check": True},
+    "checker": {
+        "skip_workflow_check": True,
+        "bin_digit_exceptions": {
+            "IB": ["9"],
+            "FB": ["100", "500", "600", "700"],
+            "DB": ["1000000", "5000000", "6000000", "7000000"],
+        },
+    },
     "server": {"host": "127.0.0.1", "port": 8080, "public_url": "", "websocket": False, "compression": False},  # (see above)
     "ui": {"product": PRODUCTS[0]},
     "database": {"path": "data/queue.db"},
@@ -152,6 +160,14 @@ def _validate(data: dict, where: str) -> None:
 
     expect("paths", "alarm_map", (str,), "a path string")
     expect("checker", "skip_workflow_check", (bool,), "true or false")
+    exceptions = expect("checker", "bin_digit_exceptions", (dict,), "an object like {\"FB\": [\"100\"]}")
+    for kind, values in exceptions.items():
+        if kind not in ("IB", "FB", "DB") or not isinstance(values, list) or not all(
+            isinstance(v, str) and v.isdigit() for v in values
+        ):
+            raise ConfigError(
+                f'{where}: "checker.bin_digit_exceptions" must map IB / FB / DB to lists of digit strings, ' f"got {json.dumps(exceptions)}"
+            )
     expect("server", "host", (str,), "a host name / address string")
     port = expect("server", "port", (int,), "a whole number between 1 and 65535")
     if not 1 <= port <= 65535:
@@ -279,6 +295,10 @@ class Settings:
     @property
     def skip_workflow_check(self) -> bool:
         return self.data["checker"]["skip_workflow_check"]
+
+    @property
+    def bin_digit_exceptions(self) -> dict[str, list[str]]:
+        return self.data["checker"]["bin_digit_exceptions"]
 
     @property
     def host(self) -> str:

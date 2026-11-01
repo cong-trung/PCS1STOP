@@ -17,7 +17,7 @@ from services import (
     format_duration,
 )
 
-PAYLOAD = {"path": r"\\share\recipes\SST_Die.xml", "product": "SST"}
+PAYLOAD = {"path": r"\\share\pcs_die_files\SST_Die.xml", "product": "SST"}
 
 
 def make_pending(services: Services, count: int) -> list[int]:

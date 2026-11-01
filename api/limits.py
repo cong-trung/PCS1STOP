@@ -16,7 +16,7 @@ MAX_BODY_BYTES = 1024 * 1024
 class ApiBodyLimit:
     """ASGI middleware for the requests below ``prefix``: a body larger than ``max_bytes`` is refused with 413, a
     body without a declared length (``Transfer-Encoding: chunked``) with 411.  Everything else - the web pages and
-    their recipe uploads included - passes untouched."""
+    their pcs_die_file uploads included - passes untouched."""
 
     def __init__(self, app: ASGIApp, max_bytes: int = MAX_BODY_BYTES, prefix: str = "/api/") -> None:
         self.app = app

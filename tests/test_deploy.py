@@ -51,14 +51,14 @@ def package_settings(folder: Path) -> dict:
 
 # ------------------------------------------------------------------------------------------ the package
 def test_the_package_has_everything_pc2_needs_and_nothing_of_pc1(pc1_config, tmp_path):
-    code, folder = build(pc1_config, tmp_path, "--allowed-root", r"M:\pcs", "--allowed-root", r"\\fileserver\recipes")
+    code, folder = build(pc1_config, tmp_path, "--allowed-root", r"M:\pcs", "--allowed-root", r"\\fileserver\pcs_die_files")
     assert code == 0
     assert {path.name for path in folder.iterdir()} == PACKAGE_FILES
 
     settings = package_settings(folder)
     assert settings["server_url"] == "http://pc1.example.com:8123"
     assert settings["api_token"] == TOKEN
-    assert settings["allowed_roots"] == [r"M:\pcs", r"\\fileserver\recipes"]
+    assert settings["allowed_roots"] == [r"M:\pcs", r"\\fileserver\pcs_die_files"]
     template = json.loads((ROOT / "worker" / "worker_config.json").read_text(encoding="utf-8"))
     for key in template.keys() - {"server_url", "api_token", "allowed_roots"}:
         assert settings[key] == template[key]  # the timings and the rest are the shipped ones

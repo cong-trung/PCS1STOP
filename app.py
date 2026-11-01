@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""PCS 1-Stop (PC1): the recipe editor, the task queue and the HTTP API the PC2 workers talk to.
+"""PCS 1-Stop (PC1): the pcs_die_file editor, the task queue and the HTTP API the PC2 workers talk to.
 
     uv run app.py                     # settings come from config.json (paths, checker options, host/port, queue)
     uv run app.py --config my.json    # use another settings file
 
-    /          recipe editor (upload a recipe XML -> parse -> edit -> save; the workflow paths are checked by a worker)
+    /          pcs_die_file editor (upload a pcs_die_file XML -> parse -> edit -> save; the workflow paths are checked by a worker)
     /tasks     every task of the queue            /workers   the PC2 machines
     /api/...   what the workers call (see README.md)
 
@@ -85,7 +85,7 @@ def configure_compression(settings: Settings) -> None:
     """Nothing the app sends is compressed unless ``server.compression`` is on.  The socket.io engine gzips every polling
     response of 1 KB or more by itself (NiceGUI's own gzip of the pages is switched off in ``run_options``); behind IIS,
     which compresses once more, that makes two layers.  The browser undoes only one of them, the NiceGUI connection
-    receives binary garbage, drops the session and reconnects for ever - every big update (a recipe's tables) is lost,
+    receives binary garbage, drops the session and reconnects for ever - every big update (a pcs_die_file's tables) is lost,
     small ones get through."""
     core.sio.eio.http_compression = settings.compression
 
@@ -105,7 +105,7 @@ def run_options(settings: Settings) -> dict:
     options = {
         "host": settings.host,
         "port": settings.port,
-        "title": "PCS Recipe Checker",
+        "title": "PCS Die File Checker",
         "reload": False,
         "show": False,  # a server: nobody wants a browser window to pop up on it
         "show_welcome_message": False,
@@ -159,7 +159,7 @@ def main(argv: list[str] | None = None) -> None:
     log.info("task store: %s", settings.database_path)
     if not settings.alarm_map or not Path(settings.alarm_map).is_file():
         log.warning(
-            "alarm map not found (%s) - recipe validation will report errors; set paths.alarm_map in config.json",
+            "alarm map not found (%s) - pcs_die_file validation will report errors; set paths.alarm_map in config.json",
             settings.alarm_map or "no path set",
         )
     else:

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from recipe.model import COLUMNS, READ_ONLY_FIELDS, CellEdit, RecipeDoc
+from pcs_die_file.model import COLUMNS, READ_ONLY_FIELDS, CellEdit, PcsDieFileDoc
 
 P1 = r"M:\pcs\wf\SST_PowerCycle.xml"
 P2 = r"M:\pcs\wf\SST_ReplaceMB.xml"
 
-RECIPE = rf"""<ComponentRecipe checksum="x">
+PCS_DIE_FILE = rf"""<ComponentRecipe checksum="x">
   <Identity type="iLLIAD" datagroup="SST_X" name="Die" id="1" version="1.0" asof="2024-01-01T00:00:00" />
   <SharedConfigurations>
     <ConfigGroup Key="PowerCycle">
@@ -41,11 +41,11 @@ RECIPE = rf"""<ComponentRecipe checksum="x">
 
 
 @pytest.fixture
-def doc() -> RecipeDoc:
-    return RecipeDoc(RECIPE.encode("utf-8"), "recipe.xml")
+def doc() -> PcsDieFileDoc:
+    return PcsDieFileDoc(PCS_DIE_FILE.encode("utf-8"), "pcs_die_file.xml")
 
 
-def checks(doc: RecipeDoc) -> dict[str, str]:
+def checks(doc: PcsDieFileDoc) -> dict[str, str]:
     return {row["id"]: row["check"] for row in doc.rows("workflow")}
 
 
@@ -129,14 +129,14 @@ def test_a_verdict_is_not_an_edit(doc):
     revision = doc.revision
     doc.set_path_checks({P1: "OK", P2: "Not found"})
     assert doc.revision == revision and not doc.dirty and not doc.can_undo
-    assert doc.export_bytes() == RECIPE.encode("utf-8")  # nothing of it reaches the file
+    assert doc.export_bytes() == PCS_DIE_FILE.encode("utf-8")  # nothing of it reaches the file
 
 
 def test_export_ignores_the_check_column(doc):
     doc.set_path_checks({P1: "OK (1.0 KB)", P2: "Not found"})
     doc.apply_edits([CellEdit("workflow", "w0", "key", "PowerCycle1")])
     out = doc.export_bytes().decode("utf-8")
-    assert out == RECIPE.replace('Key="PowerCycle"', 'Key="PowerCycle1"')
+    assert out == PCS_DIE_FILE.replace('Key="PowerCycle"', 'Key="PowerCycle1"')
 
 
 def test_added_row_has_an_empty_check_and_a_blank_path_is_never_sent(doc):

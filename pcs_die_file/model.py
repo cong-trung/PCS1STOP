@@ -25,7 +25,7 @@ Cell rules
 Rows
     ``add_row`` inserts a new XOFYBIN rule / workflow ConfigGroup right below a given row.  It is a copy of that
     row's structure with the identifying values cleared (RuleName, Bins, BinOrToken, ClearScope / Key, Path, no
-    comment), so it follows the recipe's own conventions and the checker flags it until it is filled in.
+    comment), so it follows the pcs_die_file's own conventions and the checker flags it until it is filled in.
     ``delete_row`` takes a row out of any table, together with the comment glued in front of it.
     Both are one undo step each (Ctrl+Z puts a deleted row back exactly where it was, or removes an added one).
     Whitespace "belongs" to the node behind it - a row's lead (the text in front of it) is added with it and
@@ -98,8 +98,8 @@ _PARSER_ARGS = {
 }
 
 
-class RecipeError(Exception):
-    """The uploaded file cannot be used as a recipe."""
+class PcsDieFileError(Exception):
+    """The uploaded file cannot be used as a pcs_die_file."""
 
 
 @dataclass(frozen=True)
@@ -451,17 +451,17 @@ def _esc_attr(value: str, quote: str) -> str:
 
 
 # ------------------------------------------------------------------------------------------- the model
-class RecipeDoc:
-    """A loaded recipe: tables for the UI, edit/undo/redo, and export."""
+class PcsDieFileDoc:
+    """A loaded pcs_die_file: tables for the UI, edit/undo/redo, and export."""
 
-    def __init__(self, data: bytes, filename: str = "recipe.xml"):
-        self.filename = filename or "recipe.xml"
+    def __init__(self, data: bytes, filename: str = "pcs_die_file.xml"):
+        self.filename = filename or "pcs_die_file.xml"
         self._orig = bytes(data)
         self._enc, self._bom = _detect_encoding(self._orig)
         try:
             root = etree.fromstring(self._orig, etree.XMLParser(**_PARSER_ARGS))
         except etree.XMLSyntaxError as e:
-            raise RecipeError(f"Not well-formed XML: {e}") from e
+            raise PcsDieFileError(f"Not well-formed XML: {e}") from e
         self.tree = root.getroottree()
         self.root = root
         self.export_mode = (
@@ -474,7 +474,7 @@ class RecipeDoc:
         self._by_id: dict[tuple[str, str], _Row] = {}
         self._group_rows: dict = {}
         self._errors: dict[str, str] = {}
-        self._path_checks: dict[str, str] = {}  # workflow Path -> text of the Check column (not part of the recipe)
+        self._path_checks: dict[str, str] = {}  # workflow Path -> text of the Check column (not part of the pcs_die_file)
         self._attr_orig: dict[tuple, str | None] = {}
         self._comment_orig: dict = {}
         self._added: dict = {}  # element of every row made by add_row (also the undone ones) -> its _Row
@@ -570,12 +570,12 @@ class RecipeDoc:
         return out
 
     def current_text(self) -> str:
-        """The edited recipe as text (for the checker)."""
+        """The edited pcs_die_file as text (for the checker)."""
         return etree.tostring(self.root, encoding="unicode")
 
     def export_filename(self) -> str:
         p = PurePath(self.filename)
-        return f"{p.stem or 'recipe'}_edited{p.suffix or '.xml'}"
+        return f"{p.stem or 'pcs_die_file'}_edited{p.suffix or '.xml'}"
 
     def is_editable(self, table: str, row_id: str, f: str) -> bool:
         row = self._by_id.get((table, row_id))
@@ -622,8 +622,8 @@ class RecipeDoc:
 
     @staticmethod
     def _scope(el, name: str):
-        """Where ``name`` lives for a rule.  recipe_checker merges the attributes of the rule, of its child
-        (<RepeatTriggerGroup> or <Alarm>) and of the alarms below it, so recipes keep e.g. RuleName / ParameterName /
+        """Where ``name`` lives for a rule.  pcs_die_file_checker merges the attributes of the rule, of its child
+        (<RepeatTriggerGroup> or <Alarm>) and of the alarms below it, so pcs_die_files keep e.g. RuleName / ParameterName /
         UpperLimit on any of them.  Returns ``(owner, None)`` for the rule or its <RepeatTriggerGroup>,
         ``(None, alarms)`` when only the <Alarm>s carry it, ``(None, None)`` when nobody does."""
         for cand in [el] + _kids(el, "RepeatTriggerGroup")[:1]:
@@ -879,7 +879,7 @@ class RecipeDoc:
         workflow: a ConfigGroup with an empty Workflow, after the given one
         The new row is one undo step; ``EditResult.added`` tells the UI where it went."""
         if table not in ADD_ROW_TABLES:
-            raise RecipeError(f"Rows cannot be added to the {table} table.")
+            raise PcsDieFileError(f"Rows cannot be added to the {table} table.")
         rows = self._rows[table]
         ref = self._by_id.get((table, after_id)) if after_id else None
         if ref is None and rows:
@@ -888,8 +888,8 @@ class RecipeDoc:
             anchor, parent = ref.el, ref.el.getparent()
             before, lead, tail = anchor.tail, self._lead(anchor), anchor.tail
         elif table == "xofy":
-            raise RecipeError(
-                "This recipe has no XOFYBIN rule to copy the structure from."
+            raise PcsDieFileError(
+                "This pcs_die_file has no XOFYBIN rule to copy the structure from."
             )
         else:
             anchor = None
@@ -897,8 +897,8 @@ class RecipeDoc:
                 (e for e in self.root.iter() if _is(e, "SharedConfigurations")), None
             )
             if parent is None:
-                raise RecipeError(
-                    "This recipe has no <SharedConfigurations> section to add a workflow to."
+                raise PcsDieFileError(
+                    "This pcs_die_file has no <SharedConfigurations> section to add a workflow to."
                 )
             pad = self._indent_of(parent)
             if (
@@ -944,10 +944,10 @@ class RecipeDoc:
         """Take a row out of the tree - with the comment glued in front of it and the whitespace that led up to it.
         One undo step: Ctrl+Z puts everything back exactly where it was."""
         if table not in DELETE_ROW_TABLES:
-            raise RecipeError(f"Rows cannot be deleted from the {table} table.")
+            raise PcsDieFileError(f"Rows cannot be deleted from the {table} table.")
         row = self._by_id.get((table, row_id))
         if row is None:
-            raise RecipeError("That row does not exist any more.")
+            raise PcsDieFileError("That row does not exist any more.")
         op = _RowOp(False, row, row.el.getparent(), None, [], None, None, None, None, 0)
         self._unlink(op)
         self._undo.append([op])
@@ -1137,7 +1137,7 @@ class RecipeDoc:
         """Remember what the workers found out about workflow paths (path -> text of the Check column).
 
         Replaces every earlier verdict and returns the Check cells whose text changed.  This is information about the
-        machine, not an edit of the recipe: no undo step, the document does not become dirty, export is unaffected."""
+        machine, not an edit of the pcs_die_file: no undo step, the document does not become dirty, export is unaffected."""
         rows = self._rows["workflow"]
         before = [self._get(row, "check") for row in rows]
         self._path_checks = {p.strip(): text for p, text in (checks or {}).items() if p and p.strip()}
@@ -1186,7 +1186,7 @@ class RecipeDoc:
         return [el for el in self._gone if el not in self._added]
 
     def export_bytes(self) -> bytes:
-        """The edited recipe, as the bytes to hand to the user."""
+        """The edited pcs_die_file, as the bytes to hand to the user."""
         if (
             not self._attr_orig
             and not self._comment_orig

@@ -178,7 +178,7 @@ def test_the_session_race_traceback_is_kept_out_of_the_log():
 def test_the_three_pages_and_the_assets_are_served(app_url):
     url, _ = app_url
     status, html = get(url + "/")
-    assert status == 200 and "PCS Recipe Checker" in html
+    assert status == 200 and "PCS Checker" in html
     assert "/pcs/pcs_grid.js" in html and "/pcs/pcs.css" in html
     status, html = get(url + "/tasks")
     assert status == 200 and "PCS 1-Stop - Tasks" in html and "/pcs/ops.css" in html

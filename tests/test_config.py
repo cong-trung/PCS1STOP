@@ -43,7 +43,7 @@ def test_the_shipped_config_uses_the_alarm_map_inside_the_project():
 
 def test_the_alarm_map_that_ships_with_the_app_loads():
     from config import DEFAULT_CONFIG_PATH
-    from recipe import recipe_checker as rc
+    from pcs_die_file import pcs_die_file_checker as rc
 
     amap = rc.AlarmIdMap.load(Settings(DEFAULT_CONFIG_PATH).alarm_map)
     assert amap is not None

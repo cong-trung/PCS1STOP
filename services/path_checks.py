@@ -1,13 +1,13 @@
-"""The ``check_path`` task: ask a PC2 worker whether a recipe's workflow file can be reached from that machine.
+"""The ``check_path`` task: ask a PC2 worker whether a pcs_die_file's workflow file can be reached from that machine.
 
 * the task payload is ``{"path": <Workflow Path>, "product": "SST" | "HST"}``
 * the worker's result is ``{"path", "product", "exists", "is_file", "size", "modified", "detail"?, "checked_path"?}``; a file
   that is simply not there is a *result* (``exists: false``), not a failure - FAILED is for a worker that could not look.
-  The worker maps the recipe's drive M: before it looks (SST -> Y:, HST -> X:): ``path`` is what the recipe says and
+  The worker maps the pcs_die_file's drive M: before it looks (SST -> Y:, HST -> X:): ``path`` is what the pcs_die_file says and
   ``checked_path`` the one it looked at, present only when they differ
 
-Only plain data and text in here: ``describe_check`` turns a task into the text of the recipe page's Check column and
-``PathCheckTracker`` follows the tasks of one open recipe.  The first word of that text is what ``pcs.checkKind`` in
+Only plain data and text in here: ``describe_check`` turns a task into the text of the pcs_die_file page's Check column and
+``PathCheckTracker`` follows the tasks of one open pcs_die_file.  The first word of that text is what ``pcs.checkKind`` in
 static/pcs_grid.js colours.
 """
 from __future__ import annotations
@@ -113,12 +113,12 @@ def summarize(texts: Iterable[str]) -> str:
 
 
 class PathCheckTracker:
-    """Follows the ``check_path`` tasks of one open recipe for one product.
+    """Follows the ``check_path`` tasks of one open pcs_die_file for one product.
 
     ``sync`` makes sure every path has a task - it queues the ones that are new and leaves the rest alone, so a path is
-    asked about once however often the recipe is edited - and ``poll`` reads how far the tasks are.  Both talk to the
+    asked about once however often the pcs_die_file is edited - and ``poll`` reads how far the tasks are.  Both talk to the
     database, so the UI runs them in a worker thread, one at a time (the tracker itself is not thread-safe).  A new
-    task is not queued when an identical one is still waiting for a worker: several tabs, or the same recipe
+    task is not queued when an identical one is still waiting for a worker: several tabs, or the same pcs_die_file
     uploaded again while no worker is there, share it instead of piling up more."""
 
     def __init__(self, tasks: TaskService, product: str) -> None:

@@ -13,7 +13,7 @@ Get Python from https://www.python.org/downloads/ and tick "Add python.exe to PA
 INSTALL (once)
 
   1. Unzip this folder somewhere permanent, for example D:\PCS1StopWorker.  The worker runs from here.
-  2. Log on as the user the worker should run as.  It must be able to open the recipe shares / mapped
+  2. Log on as the user the worker should run as.  It must be able to open the pcs_die_file shares / mapped
      drives (for example Y:\ for SST and X:\ for HST) - a mapped drive exists only for a logged-on user.
   3. Double-click install.bat   (or in PowerShell:  .\install.ps1 - if scripts are blocked on this PC,
      use install.bat, it works around that)
@@ -34,10 +34,10 @@ SETTINGS  (worker_config.json)
   api_token       must be the same as tasks.api_token in PC1's config.json
   hostname        the name on PC1's Workers page; empty = this PC's name.  One worker per name.
   allowed_roots   the folders / shares a check may look at, for example
-                  ["Y:\\pcs", "X:\\pcs", "\\\\fileserver\\recipes"]; empty = anywhere.  It is judged on the
+                  ["Y:\\pcs", "X:\\pcs", "\\\\fileserver\\pcs_die_files"]; empty = anywhere.  It is judged on the
                   path after drive_map (so list Y: / X:, not M:).
                   A path outside them fails with "not allowed".
-  drive_map       recipes name their files on the drive M:; this PC has that drive under another letter,
+  drive_map       pcs_die_files name their files on the drive M:; this PC has that drive under another letter,
                   depending on the product:  SST -> Y:,  HST -> X:   (M:\pcs\a.xml is looked up as
                   Y:\pcs\a.xml for SST and X:\pcs\a.xml for HST).  Only the drive letter changes.
                   To change a letter edit it here:  "drive_map": { "SST": { "M": "Y" }, "HST": { "M": "X" } }

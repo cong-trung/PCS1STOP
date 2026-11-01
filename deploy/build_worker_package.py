@@ -5,7 +5,7 @@ scripts that install it.
     uv run python deploy/build_worker_package.py                        # PC1 = server.public_url of config.json
     uv run python deploy/build_worker_package.py --server http://pc1.example.com
     uv run python deploy/build_worker_package.py --rotate-token         # new token: saved in config.json, used here
-    uv run python deploy/build_worker_package.py --allowed-root "Y:\\pcs" --allowed-root "X:\\pcs" --allowed-root "\\\\fileserver\\recipes"
+    uv run python deploy/build_worker_package.py --allowed-root "Y:\\pcs" --allowed-root "X:\\pcs" --allowed-root "\\\\fileserver\\pcs_die_files"
 
 Result: ``dist/PCS1Stop_worker/`` and ``dist/PCS1Stop_worker.zip``.  Copy the zip to PC2, unzip it somewhere permanent
 and double-click ``install.bat``.  The package holds PC1's API token - treat it like a password.
@@ -257,7 +257,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"  token:   {len(token)} characters, fingerprint {fingerprint(token)}"
           f"{' (new - saved in ' + str(config_path) + ')' if args.rotate_token else ' (the one in ' + config_path.name + ')'}")
     roots = args.allowed_root
-    print(f"  folders: {', '.join(roots) if roots else 'any (set --allowed-root to limit what a recipe can make PC2 look at)'}")
+    print(f"  folders: {', '.join(roots) if roots else 'any (set --allowed-root to limit what a pcs_die_file can make PC2 look at)'}")
     print()
     print("Next: copy the zip to PC2, unzip it somewhere permanent and double-click install.bat.")
     if settings.host in LOCAL_HOSTS:

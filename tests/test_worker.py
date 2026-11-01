@@ -229,7 +229,7 @@ def real_drive(folder) -> str:
 
 
 def as_on_m(path) -> str:
-    """The same file as a recipe names it: on the drive M:."""
+    """The same file as a pcs_die_file names it: on the drive M:."""
     return "M:" + os.path.splitdrive(str(path))[1]
 
 
@@ -253,7 +253,7 @@ def as_on_m(path) -> str:
         ("x.xml", "SST", "x.xml"),
     ],
 )
-def test_the_drive_of_a_recipe_is_mapped_per_product(path, product, mapped):
+def test_the_drive_of_a_pcs_die_file_is_mapped_per_product(path, product, mapped):
     assert wa.map_drive(path, product, wa.DEFAULT_DRIVE_MAP) == mapped
 
 
@@ -298,12 +298,12 @@ def test_a_wrong_drive_map_is_refused(drive_map):
 def test_check_path_looks_at_the_mapped_drive(tmp_path):
     target = tmp_path / "SST_PowerCycle.xml"
     target.write_text("<Workflow/>")
-    drives = {"SST": {"M": real_drive(tmp_path)}}  # a recipe's M: is the drive of the test folder on this "PC2"
+    drives = {"SST": {"M": real_drive(tmp_path)}}  # a pcs_die_file's M: is the drive of the test folder on this "PC2"
 
     result = wa.check_path({"path": as_on_m(target), "product": "SST"}, drive_map=drives)
 
     assert result["exists"] is True and result["size"] == len("<Workflow/>")
-    assert result["path"] == as_on_m(target)  # what the recipe says ...
+    assert result["path"] == as_on_m(target)  # what the pcs_die_file says ...
     assert result["checked_path"].lower() == str(target).lower()  # ... and what was looked at
 
 
@@ -317,7 +317,7 @@ def test_allowed_roots_are_judged_on_the_path_that_is_really_looked_at(tmp_path)
     assert wa.check_path(payload, [str(tmp_path)], drives)["exists"] is True  # the real folder is what is listed
     with pytest.raises(TaskError, match="not allowed") as refused:
         wa.check_path(payload, [as_on_m(tmp_path)], drives)  # a root on M: lists a place that is never looked at
-    assert "the recipe says" in str(refused.value)
+    assert "the pcs_die_file says" in str(refused.value)
 
 
 @needs_drives

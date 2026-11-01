@@ -1,4 +1,4 @@
-/* PCS Recipe Checker - keyboard / clipboard layer for NiceGUI's AG Grid (Community edition).
+/* PCS Die File Checker - keyboard / clipboard layer for NiceGUI's AG Grid (Community edition).
  *
  * The server owns the data.  This file only
  *   1. tracks a rectangular cell range per grid (click, drag, Shift+click, Shift+arrows, Ctrl+A),

@@ -19,9 +19,9 @@ This file needs nothing but Python 3.10+ (no packages): copy it with ``worker_co
 
 Task types it knows:  ``check_path``  payload ``{"path": ..., "product": "SST" | "HST"}``  - is the file there?
 ``allowed_roots`` in worker_config.json limits which folders / shares a check may look at (empty = anywhere): set it to
-the server and share names your recipes really use, so a recipe cannot make this PC probe an arbitrary machine.
+the server and share names your pcs_die_files really use, so a pcs_die_file cannot make this PC probe an arbitrary machine.
 
-Recipes name their workflow files on the drive M:.  ``drive_map`` in worker_config.json says which drive this PC has that
+PCS die files name their workflow files on the drive M:.  ``drive_map`` in worker_config.json says which drive this PC has that
 as, per product: SST -> Y:, HST -> X: (``M:\\pcs\\a.xml`` is looked up as ``Y:\\pcs\\a.xml`` for SST).  Every other path is
 looked up as written, and ``allowed_roots`` is judged on the path that is really looked at.
 """
@@ -57,7 +57,7 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "worker_config.json"
 #: what PC1 accepts as the result of a task (services.task_service.MAX_JSON_BYTES)
 MAX_RESULT_BYTES = 256 * 1024
-#: Where the drive a recipe names ends up on this PC, per product (``drive_map`` in worker_config.json): recipes name
+#: Where the drive a pcs_die_file names ends up on this PC, per product (``drive_map`` in worker_config.json): pcs_die_files name
 #: their workflow files on the drive M:, which this PC has as Y: for SST and as X: for HST
 DEFAULT_DRIVE_MAP: dict[str, dict[str, str]] = {"SST": {"M": "Y"}, "HST": {"M": "X"}}
 #: "M:\..." and "m:/..." and plain "M:" - but not the drive-relative "M:file" (whatever the current folder of M: is)
@@ -106,7 +106,7 @@ class WorkerConfig:
     max_delivery_s: float = 3600.0  # how long a finished task's result is retried (PC1 times a task out after 60 min)
     api_token: str = ""  # tasks.api_token of PC1's config.json, when one is set
     allowed_roots: list = field(default_factory=list)  # folders / shares a check may look at; [] = anywhere
-    # per product: the drive a recipe names -> the drive this PC has it as; {} = every path is looked up as written
+    # per product: the drive a pcs_die_file names -> the drive this PC has it as; {} = every path is looked up as written
     drive_map: dict = field(default_factory=lambda: {product: dict(drives) for product, drives in DEFAULT_DRIVE_MAP.items()})
     max_stuck_tasks: int = 8  # no new tasks while this many checks hang on a share that does not answer
     log_file: str = "worker.log"  # next to the config file; "" = console only
@@ -324,7 +324,7 @@ def describe_drive_map(drive_map: Any) -> str:
 
 
 def map_drive(path: str, product: str, drive_map: Mapping[str, Mapping[str, str]]) -> str:
-    """The path as this PC has it: a recipe names its files on the drive M:, which is Y: for SST and X: for HST
+    """The path as this PC has it: a pcs_die_file names its files on the drive M:, which is Y: for SST and X: for HST
     (``drive_map``), so ``M:\\pcs\\a.xml`` becomes ``Y:\\pcs\\a.xml`` for SST and ``X:\\pcs\\a.xml`` for HST.  Only the
     drive letter changes; a path on another drive, a ``\\\\server\\share`` path and a product that has no entry stay as
     they are.  The drive is replaced once - the drive it is replaced with is not looked up again."""
@@ -342,8 +342,8 @@ def check_path(
 ) -> dict[str, Any]:
     """Is the file there, as seen from this machine?  A missing file is an *answer* (``exists: false``).
 
-    The drive of the recipe is mapped first (``drive_map``: ``M:\\...`` is ``Y:\\...`` for SST, ``X:\\...`` for HST); the
-    result keeps the recipe's ``path`` and, when it differs, adds ``checked_path`` - the one that was looked at.
+    The drive of the pcs_die_file is mapped first (``drive_map``: ``M:\\...`` is ``Y:\\...`` for SST, ``X:\\...`` for HST); the
+    result keeps the pcs_die_file's ``path`` and, when it differs, adds ``checked_path`` - the one that was looked at.
     ``allowed_roots`` is judged on the path that is looked at.
 
     Trouble that stops the worker from looking at all (access denied, an I/O error, a path outside ``allowed_roots``)
@@ -355,7 +355,7 @@ def check_path(
         raise TaskError("the task has no product")
     path, product = path.strip(), product.strip()
     target = map_drive(path, product, drive_map or {})
-    where = path if target == path else f"{target} (the recipe says {path})"
+    where = path if target == path else f"{target} (the pcs_die_file says {path})"
     if not is_allowed(target, allowed_roots):
         raise TaskError(f"not allowed: the path is outside the folders this worker may look at (allowed_roots): {where}")
     result: dict[str, Any] = {"path": path, "product": product, "exists": False, "is_file": False}
@@ -697,7 +697,7 @@ def run_check(config: WorkerConfig, out: Callable[[str], None] = print) -> int:
         else:
             out(f"[ ok ] allowed folder found: {root}" if found else
                 f"[warn] allowed folder not found from this PC: {root} (mapped drive? share offline?)")
-    for product, drives in drive_map.items():  # (the same for the drives that the recipe's drive stands for)
+    for product, drives in drive_map.items():  # (the same for the drives that the pcs_die_file's drive stands for)
         for source, target in drives.items():
             what = f"{product}: {source}:\\ is looked up as {target}:\\"
             found = is_there(f"{target}:\\")

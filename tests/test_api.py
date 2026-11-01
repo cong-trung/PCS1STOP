@@ -8,7 +8,7 @@ from api import install_api
 from database import TaskStatus
 from services import Services
 
-PATH = r"\\share\recipes\SST_Die.xml"
+PATH = r"\\share\pcs_die_files\SST_Die.xml"
 
 
 @pytest.fixture
