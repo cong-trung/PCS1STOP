@@ -4,7 +4,8 @@
     uv run app.py                     # settings come from config.json (paths, checker options, host/port, queue)
     uv run app.py --config my.json    # use another settings file
 
-    /          pcs_die_file editor (upload a pcs_die_file XML -> parse -> edit -> save; the workflow paths are checked by a worker)
+    /          pcs_die_file editor (upload a pcs_die_file XML -> parse -> edit -> save; the workflow paths are checked by a worker;
+               the Program box looks a test program's bins up in Oracle)
     /tasks     every task of the queue            /workers   the PC2 machines
     /api/...   what the workers call (see README.md)
 
@@ -26,7 +27,7 @@ from api import install_api
 from config import ConfigError, Settings
 from database import Database, init_db
 from scheduler import MonitorScheduler, install_scheduler
-from services import Services
+from services import ProgramBinsService, Services
 from ui import register_pages  # our package, not nicegui.ui
 from ui.common import STATIC
 
@@ -44,6 +45,7 @@ def build_services(settings: Settings) -> Services:
         assigned_timeout=settings.assigned_timeout,
         running_timeout=settings.running_timeout,
         api_token=settings.api_token,
+        program_bins=ProgramBinsService(settings.oracle_dir, settings.oracle_alias),
     )
 
 
@@ -164,6 +166,14 @@ def main(argv: list[str] | None = None) -> None:
         )
     else:
         log.info("alarm map: %s", settings.alarm_map)
+    oracle_db = services.program_bins.module_path
+    if oracle_db.is_file():
+        log.info("oracle module: %s (alias %s)", oracle_db, services.program_bins.alias)
+    else:
+        log.warning(
+            "oracle module not found (%s) - the Program box cannot look up bins; set oracle.portable_dir in config.json",
+            oracle_db,
+        )
     for level, message in reachability_notes(settings):
         log.log(level, "%s", message)
     configure_transport(settings)

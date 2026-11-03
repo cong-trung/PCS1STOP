@@ -6,6 +6,7 @@
       "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com", "websocket": false,
                     "compression": false },
       "ui":       { "product": "SST" },
+      "oracle":   { "portable_dir": "pcs_oracle_portable", "alias": "VN.ARIES" },
       "database": { "path": "data/queue.db" },
       "tasks":    { "monitor_interval_s": 60, "worker_offline_after_s": 60, "assigned_timeout_s": 300,
                     "running_timeout_s": 3600, "ui_refresh_s": 5, "api_token": "" }
@@ -35,6 +36,10 @@ server.compression          true = the app compresses what it sends (right for a
                             that makes two layers - the browser undoes only one, the NiceGUI connection receives binary
                             garbage and every big update (a pcs_die_file's tables) is lost
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
+oracle.portable_dir         the folder with oracle_db.py, the Oracle client and the TNS files (the pcs_oracle_portable set):
+                            what the Program box looks test programs up with (restart needed).  Missing = the app still
+                            starts, and a lookup says what is missing
+oracle.alias                the TNS alias of the database the lookup logs in to (restart needed)
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
 tasks.worker_offline_after_s  a worker not heard of for this long is OFFLINE
@@ -83,6 +88,7 @@ DEFAULTS: dict[str, dict[str, Any]] = {
     },
     "server": {"host": "127.0.0.1", "port": 8080, "public_url": "", "websocket": False, "compression": False},  # (see above)
     "ui": {"product": PRODUCTS[0]},
+    "oracle": {"portable_dir": "pcs_oracle_portable", "alias": "VN.ARIES"},
     "database": {"path": "data/queue.db"},
     "tasks": {
         "monitor_interval_s": 60,
@@ -183,6 +189,10 @@ def _validate(data: dict, where: str) -> None:
     product = expect("ui", "product", (str,), "SST or HST")
     if product.strip().upper() not in PRODUCTS:
         raise ConfigError(f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}')
+    if not expect("oracle", "portable_dir", (str,), "a path string").strip():
+        raise ConfigError(f'{where}: "oracle.portable_dir" must not be empty')
+    if not expect("oracle", "alias", (str,), "a TNS alias like VN.ARIES").strip():
+        raise ConfigError(f'{where}: "oracle.alias" must not be empty')
     if not expect("database", "path", (str,), "a path string").strip():
         raise ConfigError(f'{where}: "database.path" must not be empty')
     for key in _SECONDS:
@@ -327,6 +337,16 @@ class Settings:
     def product(self) -> str:
         """The selected product line, upper case (one of PRODUCTS)."""
         return self.data["ui"]["product"].strip().upper()
+
+    @property
+    def oracle_dir(self) -> Path:
+        """Absolute path of the folder with oracle_db.py (the pcs_oracle_portable set)."""
+        return resolve_path(self.data["oracle"]["portable_dir"], self.path.parent)
+
+    @property
+    def oracle_alias(self) -> str:
+        """The TNS alias the Program lookup logs in to."""
+        return self.data["oracle"]["alias"].strip()
 
     @property
     def database_path(self) -> Path:

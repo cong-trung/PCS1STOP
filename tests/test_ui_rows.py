@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 
 from database import TaskStatus
+from pcs_die_file import duplicates as dup
+from pcs_die_file import validation as rv
+from pcs_die_file.model import READ_ONLY_FIELDS
 from services import utcnow
+from ui.common import STATIC
+from ui.pcs_die_file_page import column_defs, program_status, validation_notice, validation_status
 from ui.tasks_page import FILTERS, detail_lines, summary_text, task_rows
 from ui.workers_page import summary_text as workers_summary
 from ui.workers_page import worker_rows
@@ -124,3 +130,60 @@ def test_times_are_shown_in_local_time(services):
     stamp = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     assert local_time(stamp) == stamp.astimezone().strftime("%Y-%m-%d %H:%M:%S")
     assert local_time(None) == "-" and stamp + timedelta(0) == stamp
+
+
+# ------------------------------------------------------------------------------------------ the pcs_die_file page
+def test_the_program_status_is_the_name_and_the_number_of_bins_only():
+    assert program_status("EMRA1X3B13F2633", 21848) == "program 'EMRA1X3B13F2633': 21848 bin(s) queried"
+    assert program_status("X", 0) == "program 'X': 0 bin(s) queried"
+
+
+def test_the_validation_status_counts_errors_and_warnings():
+    assert validation_status(rv.CheckResult(text="", ok=True, seconds=0.31)) == "Validation: OK  (0.3s)"
+    assert validation_status(rv.CheckResult(text="", ok=False, n_errors=2, seconds=1.0)) == "Validation: 2 error(s)  (1.0s)"
+    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", ()), ())
+    only_warnings = rv.CheckResult(text="", ok=True, duplicates=[duplicate] * 3)
+    assert validation_status(only_warnings) == "Validation: OK, 3 warning(s)  (0.0s)"  # warnings do not turn OK into errors
+    both = rv.CheckResult(text="", ok=False, n_errors=1, duplicates=[duplicate])
+    assert validation_status(both) == "Validation: 1 error(s), 1 warning(s)  (0.0s)"
+
+
+def test_the_validation_status_counts_missing_bins_too():
+    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", ()), ())
+    assert validation_status(rv.CheckResult(text="", ok=True, missing=[1, 2, 3])) == "Validation: OK, 3 bin(s) missing  (0.0s)"
+    both = rv.CheckResult(text="", ok=True, duplicates=[duplicate], missing=[1])
+    assert validation_status(both) == "Validation: OK, 1 warning(s), 1 bin(s) missing  (0.0s)"
+
+
+def test_the_validate_button_tells_what_it_found():
+    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", ()), ())
+    assert validation_notice(rv.CheckResult(text="", ok=True)) == ("No errors found.", "positive")
+    assert validation_notice(rv.CheckResult(text="", ok=False, n_errors=2, missing=[1])) == (
+        "2 error(s) - see the Error tab.", "warning")  # an error is all it says
+    warned = rv.CheckResult(text="", ok=True, duplicates=[duplicate] * 3)
+    assert validation_notice(warned) == ("No errors found - 3 warning(s), see the Warning tab.", "warning")
+    short = rv.CheckResult(text="", ok=True, missing=[5, 6])
+    assert validation_notice(short) == ("No errors found - 2 bin(s) missing, see the Missing Bins tab.", "warning")
+    both = rv.CheckResult(text="", ok=True, duplicates=[duplicate], missing=[5])
+    assert validation_notice(both) == (
+        "No errors found - 1 warning(s), see the Warning tab; 1 bin(s) missing, see the Missing Bins tab.", "warning")
+
+
+def test_the_rule_grid_ends_with_the_read_only_note_column_and_the_trash_icon():
+    defs = column_defs("xofy")
+    assert [d.get("field") for d in defs[-3:]] == ["error", "note", None] and defs[-2]["headerName"] == "Note"
+    assert defs[-1]["colId"] == "_del"
+    assert all(d.get("field") != "note" for d in column_defs("workflow") + column_defs("parametric"))
+
+
+def test_the_grid_script_and_the_model_agree_on_the_read_only_columns():
+    script = (STATIC / "pcs_grid.js").read_text(encoding="utf-8")
+    listed = re.search(r"const READ_ONLY = \[([^\]]*)\]", script).group(1)
+    assert set(re.findall(r"'([a-z_]+)'", listed)) == set(READ_ONLY_FIELDS)
+
+
+def test_every_row_colour_the_grid_uses_is_styled():
+    css = (STATIC / "pcs.css").read_text(encoding="utf-8")
+    for name in ("pcs-row-err", "pcs-row-warn", "pcs-row-ok"):
+        assert f".ag-row.{name}" in css
+    assert re.search(r"\.pcs-row-warn\s*\{[^}]*background-color:\s*#fff[0-9a-f]{3}", css)  # yellow

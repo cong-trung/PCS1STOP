@@ -10,3 +10,4 @@ data/*.log*
 worker/*.log*
 # the built PC2 package holds the API token
 dist/
+pcs_oracle_portable

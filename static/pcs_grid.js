@@ -11,7 +11,7 @@
   'use strict';
 
   const TRASH = '_del'; // id of the trash-icon column: not a data column, never part of a selection / copy
-  const READ_ONLY = ['error', 'check']; // computed by the checker / the workers, never editable
+  const READ_ONLY = ['error', 'note', 'check']; // computed by the validation / the workers, never editable
 
   const S = (window.pcs = {
     editMode: false,

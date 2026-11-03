@@ -7,7 +7,8 @@ Three tables mirror the grids of the old WinForms tool:
     parametric  PARAMETRIC rules                    GroupName, ParameterName, UpperLimit, Alarm Action / ConfigKey
     xofy        XOFYBIN rules                       ValidOperations, Bins, X, Y, RuleName, ClearScope,
                                                     Alarm Action / ConfigKey, preceding comment, Alarm BinOrToken,
-                                                    (validation error)
+                                                    (validation error, note - both read-only: what the validation
+                                                    found out, see ``set_validation``)
 
 Edits are applied to an lxml tree.  ``export_bytes`` then patches the *original text* in place, so only the
 edited attribute values / comments - and the rows you added or deleted - change (CRLF vs LF, tabs, ``<a />``
@@ -19,7 +20,9 @@ Cell rules
     * XOFYBIN/PARAMETRIC attributes (Bins, X, Y, RuleName, ClearScope, ParameterName, UpperLimit) are read and
       edited where the file keeps them: on the rule, on its <RepeatTriggerGroup>, or on its <Alarm> children
     * Alarm columns (Action, ConfigKey, BinOrToken) span all <Alarm> children of a rule: one value applies to every
-      alarm, ``a; b; c`` (one value per alarm, in order) edits them individually
+      alarm, ``a; b; c`` (one value per alarm, in order) edits them individually.  A list with more or fewer values
+      than the rule has alarms changes the number of alarms: new ones are copies of the last alarm with the next
+      Order, surplus ones are taken out from the end (one undo step, like every other edit)
     * RuleGroup-level columns (Rule Group Name, Valid Operations) change the whole group
 
 Rows
@@ -70,9 +73,10 @@ COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("comment", "Comment"),
         ("bin_or_token", "BinOrToken"),
         ("error", "Validation Error"),
+        ("note", "Note"),
     ],
 }
-READ_ONLY_FIELDS = frozenset({"error", "check"})
+READ_ONLY_FIELDS = frozenset({"error", "check", "note"})
 ALARM_SEPARATOR = ";"
 #: grid field -> attribute name, for the attributes a rule keeps on itself, its <RepeatTriggerGroup> or its alarms
 RULE_ATTRS = {
@@ -84,6 +88,9 @@ RULE_ATTRS = {
     "rule_name": "RuleName",
     "clear_scope": "ClearScope",
 }
+#: the columns that are made of the <Alarm>s of a rule - they read differently when an edit changes the number of alarms
+#: (so do the RULE_ATTRS columns in a file that keeps those attributes on the alarms)
+ALARM_COLUMNS = frozenset({"action", "alarm_config_key", "config_key", "bin_or_token"})
 _WS = " \t\r\n"
 
 _XML_BAD_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
@@ -164,7 +171,8 @@ class _Change:
     old: str
     new: str
     #: what the edit did to the attributes, ((element, attribute, before, after), ...) - undo / redo put exactly that
-    #: back, on exactly those elements (None = no such attribute), whatever the cells look like by then
+    #: back, on exactly those elements (None = no such attribute), whatever the cells look like by then.  An _AlarmOp
+    #: stands in the same sequence where the edit put an alarm in or took one out
     attrs: tuple = ()
 
 
@@ -190,6 +198,47 @@ class _RowOp:
     before: str | None
     index: int  # position of the row in its table
     error: str | None = None  # validation message the row had when it was deleted
+    note: str | None = None  # text of its Note cell when it was deleted
+
+
+@dataclass
+class _AlarmOp:
+    """An <Alarm> put into / taken out of a rule because an alarm column got a list with more / fewer values than the
+    rule has alarms (``added`` = put in).  It rides along in the attribute changes of that edit (``_Change.attrs``), so
+    undo and redo run it in order with them and an alarm always comes back as the very same element in the same place.
+    ``lead`` is the text in front of the alarm (``ref.tail``, or ``parent.text`` when it is the first child) while it
+    is in the tree, ``before`` the same slot while it is out; ``tail`` is the alarm's own tail."""
+
+    added: bool
+    el: etree._Element
+    parent: etree._Element
+    ref: etree._Element | None  # node in front of the alarm (None: it is the first child of its parent)
+    lead: str | None
+    before: str | None
+    tail: str | None
+
+    def run(self, *, forward: bool) -> None:
+        """Do the op (forward) or take it back."""
+        if self.added == forward:
+            self._link()
+        else:
+            self._unlink()
+
+    def _link(self) -> None:
+        if self.ref is not None:
+            self.ref.addnext(self.el)
+            self.ref.tail = self.lead
+        else:
+            self.parent.insert(0, self.el)
+            self.parent.text = self.lead
+        self.el.tail = self.tail
+
+    def _unlink(self) -> None:
+        self.parent.remove(self.el)  # takes the alarm's tail along
+        if self.ref is not None:
+            self.ref.tail = self.before
+        else:
+            self.parent.text = self.before
 
 
 # ------------------------------------------------------------------------------------------ xml helpers
@@ -232,6 +281,17 @@ def _alarms(rule) -> list:
         elif n == "REPEATTRIGGERGROUP":
             out.extend(_kids(c, "Alarm"))
     return out
+
+
+def _next_order(alarms: list) -> int:
+    """The Order after the highest of ``alarms`` (the alarms of a <RepeatTriggerGroup> count 1, 2, 3 ... without gaps)."""
+    top = 0
+    for a in alarms:
+        try:
+            top = max(top, int(_attr(a, "Order")))
+        except ValueError:  # no Order, or one that is no number: the checker has its say
+            pass
+    return top + 1
 
 
 def _ci_key(el, name: str):
@@ -474,11 +534,14 @@ class PcsDieFileDoc:
         self._by_id: dict[tuple[str, str], _Row] = {}
         self._group_rows: dict = {}
         self._errors: dict[str, str] = {}
+        self._notes: dict[str, str] = {}  # XOFYBIN row id -> text of its Note cell (what the validation says about the rule)
         self._path_checks: dict[str, str] = {}  # workflow Path -> text of the Check column (not part of the pcs_die_file)
         self._attr_orig: dict[tuple, str | None] = {}
         self._comment_orig: dict = {}
         self._added: dict = {}  # element of every row made by add_row (also the undone ones) -> its _Row
         self._gone: dict = {}  # element of every row that is deleted right now -> its _Row
+        self._new_alarms: set = set()  # <Alarm> elements made by a resize of the alarms of a rule (also the undone ones)
+        self._cut_alarms: dict = {}  # <Alarm> element the file had and a resize took out (once) -> the parent it was in
         self._slots: set = set()  # (element, attribute) left empty on purpose in an added row: stays, never deleted
         self._journal: list | None = (
             None  # attribute changes of the edit that is running (see _Change.attrs)
@@ -544,6 +607,7 @@ class PcsDieFileDoc:
                 r for r in self._group_rows.get(row.group, []) if r is not row
             ]
         self._errors.pop(row.id, None)
+        self._notes.pop(row.id, None)
 
     # ---------------------------------------------------------------------------------------- reading
     def rows(self, table: str) -> list[dict]:
@@ -590,6 +654,8 @@ class PcsDieFileDoc:
         el, t = row.el, row.table
         if f == "error":
             return self._errors.get(row.id, "")
+        if f == "note":
+            return self._notes.get(row.id, "")
         if t == "workflow":
             if f == "key":
                 return _attr(el, "Key")
@@ -658,8 +724,12 @@ class PcsDieFileDoc:
 
     @staticmethod
     def _put_attrs(attrs: tuple, *, forward: bool) -> None:
-        """Redo (forward) or undo one edit's attribute changes, exactly."""
-        for el, key, before, after in attrs if forward else reversed(attrs):
+        """Redo (forward) or undo one edit's attribute changes - and the alarms it put in or took out - exactly."""
+        for entry in attrs if forward else reversed(attrs):
+            if isinstance(entry, _AlarmOp):
+                entry.run(forward=forward)
+                continue
+            el, key, before, after = entry
             value = after if forward else before
             if value is None:
                 if key in el.attrib:
@@ -667,13 +737,44 @@ class PcsDieFileDoc:
             else:
                 el.set(key, value)
 
-    def _set_alarms(self, alarms: list, name: str, value: str) -> None:
-        n = len(alarms)
-        values = [value] * n
-        if n > 1 and ALARM_SEPARATOR in value:
-            parts = [p.strip() for p in value.split(ALARM_SEPARATOR)]
-            if len(parts) == n:
-                values = parts
+    def _alarm_op(self, op: _AlarmOp) -> None:
+        op.run(forward=True)
+        if self._journal is not None:
+            self._journal.append(op)
+
+    def _resize_alarms(self, alarms: list, count: int) -> list:
+        """Give a rule ``count`` alarms: the new ones are copies of the last alarm - numbered on, Order - and sit right
+        behind it, the surplus ones are taken out from the end.  Returns the alarms the rule has now."""
+        alarms = list(alarms)
+        while len(alarms) < count:
+            last = alarms[-1]
+            parent = last.getparent()
+            new = copy.deepcopy(last)
+            new.tail = None
+            order = _ci_key(new, "Order")
+            if order is not None:
+                new.set(order, str(_next_order(_kids(parent, "Alarm"))))
+            self._slots.update((new, k) for k in new.attrib if (last, k) in self._slots)
+            self._alarm_op(_AlarmOp(True, new, parent, last, self._lead(last), last.tail, last.tail))
+            self._new_alarms.add(new)
+            alarms.append(new)
+        while len(alarms) > count:
+            gone = alarms.pop()
+            parent, ref = gone.getparent(), gone.getprevious()
+            lead = ref.tail if ref is not None else parent.text
+            self._alarm_op(_AlarmOp(False, gone, parent, ref, lead, gone.tail, gone.tail))
+            if gone not in self._new_alarms:
+                self._cut_alarms[gone] = parent
+        return alarms
+
+    def _set_alarms(self, alarms: list, name: str, value: str, *, resize: bool = False) -> None:
+        """Write ``value`` to the alarms: the same one to every alarm, or - when it is a list, ``a; b; c`` - one value
+        per alarm.  ``resize`` (the Action / ConfigKey / BinOrToken columns): a list of any other length first gives
+        the rule as many alarms as there are values; without it such a list is written to every alarm as it is."""
+        parts = [p.strip() for p in value.split(ALARM_SEPARATOR)]
+        if resize and len(parts) > 1 and alarms:
+            alarms = self._resize_alarms(alarms, len(parts))
+        values = parts if len(alarms) > 1 and len(parts) == len(alarms) else [value] * len(alarms)
         for a, v in zip(alarms, values):
             self._set_attr(a, name, v)
 
@@ -743,11 +844,11 @@ class PcsDieFileDoc:
                 value,
             )
         elif f in ("alarm_config_key", "config_key"):
-            self._set_alarms(_alarms(el), "ConfigKey", value)
+            self._set_alarms(_alarms(el), "ConfigKey", value, resize=True)
         elif f == "action":
-            self._set_alarms(_alarms(el), "Action", value)
+            self._set_alarms(_alarms(el), "Action", value, resize=True)
         elif f == "bin_or_token":
-            self._set_alarms(_alarms(el), "BinOrToken", value)
+            self._set_alarms(_alarms(el), "BinOrToken", value, resize=True)
         else:
             name = RULE_ATTRS[f]
             owner, alarms = self._scope(el, name)
@@ -980,6 +1081,8 @@ class PcsDieFileDoc:
         self._gone.pop(op.row.el, None)
         if op.error is not None:
             self._errors[op.row.id] = op.error
+        if op.note is not None:
+            self._notes[op.row.id] = op.note
 
     def _unlink(self, op: _RowOp) -> None:
         """Take the row out of the tree (delete_row, redo of it, undo of add_row).  What the op remembers for putting it
@@ -1002,6 +1105,7 @@ class PcsDieFileDoc:
             op.before = (keep + (op.tail or "")) or None
         op.index = next(i for i, r in enumerate(self._rows[row.table]) if r is row)
         op.error = self._errors.get(row.id)
+        op.note = self._notes.get(row.id)
         self._unregister(row)
         for n in op.nodes:
             op.parent.remove(n)  # takes the node's tail along
@@ -1043,6 +1147,8 @@ class PcsDieFileDoc:
                 _Change(e.table, e.row_id, e.field, old, self._get(row, e.field), attrs)
             )
             res.applied += 1
+            if any(isinstance(x, _AlarmOp) for x in attrs):
+                self._touch_alarm_cells(touched, row)
             for sib in self._siblings(row, e.field):
                 touched[(sib.table, sib.id, e.field)] = None
         if changes:
@@ -1052,6 +1158,14 @@ class PcsDieFileDoc:
                 self._redo.clear()
         res.updates = self._collect(touched)
         return res
+
+    def _touch_alarm_cells(self, touched: dict, row: _Row) -> None:
+        """The number of alarms of a rule changed: every cell made of its alarms may read differently now."""
+        for f, _ in COLUMNS[row.table]:
+            if f in ALARM_COLUMNS or (
+                f in RULE_ATTRS and self._scope(row.el, RULE_ATTRS[f])[1] is not None
+            ):
+                touched[(row.table, row.id, f)] = None
 
     def _collect(self, touched) -> list[CellUpdate]:
         out: dict[tuple[str, str, str], CellUpdate] = {}
@@ -1120,6 +1234,8 @@ class PcsDieFileDoc:
             else:
                 self._put_attrs(ch.attrs, forward=not reverse)
             touched[(ch.table, ch.row_id, ch.field)] = None
+            if any(isinstance(x, _AlarmOp) for x in ch.attrs):
+                self._touch_alarm_cells(touched, row)
             for sib in self._siblings(row, ch.field):
                 touched[(sib.table, sib.id, ch.field)] = None
             res.applied += 1
@@ -1148,23 +1264,38 @@ class PcsDieFileDoc:
         ]
 
     # ------------------------------------------------------------------------------------ validation
+    def bin_rules(self) -> list[tuple[str, str, str]]:
+        """(row id, RuleName, Bins) of every XOFYBIN rule in file order - what the duplicate check compares."""
+        return [(row.id, self._get(row, "rule_name"), self._get(row, "bins")) for row in self._rows["xofy"]]
+
     def set_validation(
-        self, per_rule: dict[str, list[str]] | None, *, checked: bool = True
+        self,
+        per_rule: dict[str, list[str]] | None,
+        notes: dict[str, str] | None = None,
+        *,
+        checked: bool = True,
     ) -> list[CellUpdate]:
-        """Store checker results; returns the changed 'error' cells of the XOFYBIN table."""
+        """Store what the validation found out: the checker's messages (RuleName -> lines, the 'error' column) and the
+        notes of the duplicate check (row id -> text, the 'note' column).  Returns the changed 'error' and 'note' cells
+        of the XOFYBIN table."""
         per_rule = per_rule or {}
-        before = dict(self._errors)
-        self._errors = {}
+        before, before_notes = dict(self._errors), self._notes
+        self._errors, self._notes = {}, {}
         if checked:
             for row in self._rows["xofy"]:
                 name = self._get(row, "rule_name")
                 errs = per_rule.get(name, []) if name else self._unnamed_errors(row)
                 self._errors[row.id] = " | ".join(dict.fromkeys(errs)) if errs else "OK"
-        ids = {r.id for r in self._rows["xofy"]}
+            self._notes = {rid: text for rid, text in (notes or {}).items() if text and ("xofy", rid) in self._by_id}
+        ids = sorted({r.id for r in self._rows["xofy"]}, key=lambda s: int(s[1:]))
         return [
             CellUpdate("xofy", rid, "error", self._errors.get(rid, ""))
-            for rid in sorted(ids, key=lambda s: int(s[1:]))
+            for rid in ids
             if before.get(rid, "") != self._errors.get(rid, "")
+        ] + [
+            CellUpdate("xofy", rid, "note", self._notes.get(rid, ""))
+            for rid in ids
+            if before_notes.get(rid, "") != self._notes.get(rid, "")
         ]
 
     def _unnamed_errors(self, row: _Row) -> list[str]:
@@ -1185,6 +1316,21 @@ class PcsDieFileDoc:
         """Elements of the rows the file had that are deleted right now."""
         return [el for el in self._gone if el not in self._added]
 
+    def _alarms_changed(self) -> bool:
+        """True while a resize of the alarms of a rule has put an alarm into the tree or taken one out of it."""
+        return any(el.getparent() is not None for el in self._new_alarms) or any(
+            el.getparent() is None for el in self._cut_alarms
+        )
+
+    def _new_alarms_in(self, index: dict, live: set) -> list:
+        """The alarms a resize made that sit in the tree right now, in a rule the file already had (those in a row made
+        by add_row are written with their row)."""
+        return [el for el in self._new_alarms if el in live and el.getparent() in index]
+
+    def _cut_alarms_in(self, index: dict, live: set) -> list:
+        """The alarms the file had that a resize took out of a rule that is still there."""
+        return [el for el, parent in self._cut_alarms.items() if el in index and el not in live and parent in live]
+
     def export_bytes(self) -> bytes:
         """The edited pcs_die_file, as the bytes to hand to the user."""
         if (
@@ -1192,6 +1338,7 @@ class PcsDieFileDoc:
             and not self._comment_orig
             and not self._live_added()
             and not self._gone_originals()
+            and not self._alarms_changed()
         ):
             out, mode = self._orig, "original"
         else:
@@ -1270,13 +1417,14 @@ class PcsDieFileDoc:
 
     @staticmethod
     def _row_deletes(
-        gone: list, index: dict, origins: list[_Origin], text: str
+        gone: list, index: dict, origins: list[_Origin], text: str, *, glued: bool = True
     ) -> list[tuple[int, int, str]]:
-        """Text spans of the deleted rows: the row (with the comment glued to it) and the whitespace in front of it."""
+        """Text spans of the deleted rows: the row (with the comment glued to it - unless ``glued`` is off, for the
+        alarms a resize took out, whose comments stay) and the whitespace in front of it."""
         spans = []
         for el in gone:
             o = origins[index[el]]
-            p = o.comment[0] if o.comment else o.start
+            p = o.comment[0] if glued and o.comment else o.start
             while p > 0 and text[p - 1] in _WS:
                 p -= 1
             spans.append((p, o.end, ""))
@@ -1299,7 +1447,7 @@ class PcsDieFileDoc:
                 raise _PatchError("element order differs from scanner")
             index[e] = i
         live = set(self.root.iter())
-        added = self._live_added()
+        added = self._live_added() + self._new_alarms_in(index, live)
         eol = "\r\n" if text.count("\r\n") * 2 > text.count("\n") else "\n"
 
         patches: list[tuple[int, int, str]] = []
@@ -1351,6 +1499,9 @@ class PcsDieFileDoc:
         patches += [(pos, pos, "".join(parts)) for pos, parts in inserts.items()]
         patches += self._row_deletes(
             [e for e in self._gone_originals() if e in index], index, origins, text
+        )
+        patches += self._row_deletes(
+            self._cut_alarms_in(index, live), index, origins, text, glued=False
         )
         patches.sort(key=lambda p: (p[0], p[1]))
         for a, b in pairwise(patches):

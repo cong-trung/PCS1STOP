@@ -3,6 +3,7 @@ from .clock import Clock, utcnow
 from .container import Services
 from .errors import Conflict, InvalidRequest, InvalidTransition, ServiceError, TaskNotFound, WorkerMismatch
 from .formatting import format_duration, local_time
+from .program_bins import ProgramBins, ProgramBinsError, ProgramBinsService
 from .task_service import TaskService
 from .timeout_monitor import MonitorLimits, MonitorReport, TimeoutMonitor
 from .views import TaskView, WorkerView
@@ -15,6 +16,9 @@ __all__ = [
     "InvalidTransition",
     "MonitorLimits",
     "MonitorReport",
+    "ProgramBins",
+    "ProgramBinsError",
+    "ProgramBinsService",
     "ServiceError",
     "Services",
     "TaskNotFound",

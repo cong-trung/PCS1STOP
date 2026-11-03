@@ -36,12 +36,14 @@ relative to the folder of `config.json`:
 | `server.websocket` | how the browsers stay connected. `false` (default, as shipped) = plain HTTP polling, which works behind every reverse proxy at once. `true` = WebSocket first, polling as the fallback: lighter, but IIS + ARR often cannot relay it - the browser then waits about 20 s before it falls back, or keeps retrying the WebSocket - and the PCS die file, Tasks and Workers pages stay empty meanwhile |
 | `server.compression` | `false` (default, as shipped) = the app compresses nothing: NiceGUI gzips its pages and the socket.io engine gzips every polling response of 1 KB or more, and behind IIS, which compresses by itself, that makes two layers. The browser undoes only one, the NiceGUI connection receives binary garbage, drops the session and reconnects for ever - small updates get through, every big one (a pcs_die_file's tables) is lost. `true` = the app compresses (a direct connection without a proxy) |
 | `ui.product` | `SST` or `HST` - the Product box (remembered here) |
+| `oracle.portable_dir` | the folder with `oracle_db.py`, the Oracle client and the TNS files - the `pcs_oracle_portable` set the Program box looks test programs up with (restart needed). Default `pcs_oracle_portable`. If it is missing the app still starts (the log warns) and a lookup says what is missing |
+| `oracle.alias` | the TNS alias the lookup logs in to, default `VN.ARIES` (restart needed) |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
 | `tasks.ui_refresh_s` | refresh of the Tasks and Workers pages (5) |
 | `tasks.api_token` | the secret the workers send as `X-API-Token` (every `/api` call except `/api/health` needs it). Set in the shipped file; plain ASCII |
 
-Pages: `/` pcs_die_file editor, `/tasks` the queue (filters, click a row for payload / result / error), `/workers` the PC2 machines.
+Pages: `/` pcs_die_file editor (with the *Program* box, see *Program bins* below), `/tasks` the queue (filters, click a row for payload / result / error), `/workers` the PC2 machines.
 Logs go to the console and `data/pcs1stop.log`; at start-up the log says which alarm map is in use.
 Settings are read once at start-up, except `paths.*` and `checker.*`, which are picked up by the next validation.
 Changing the Product box saves `config.json` again, but reads it first and changes only `ui.product`: a hand edit - or a
@@ -173,6 +175,85 @@ Things to know:
   pcs_die_file while the edits go to another.
 * The Product box applies to the checks: after it changes, every path is checked again for the new product.
 
+## Program bins (Program box -> Oracle)
+
+The **Program** box in the toolbar takes the name of a test program. It never changes the open pcs_die_file; the bins it
+looks up are compared with the rules (see *Missing bins* below).
+Type or paste it and leave it alone: **10 seconds after the last keystroke** the value is recorded, PC1 looks the
+program's bins up in Oracle and saves them. Every keystroke starts the 10 seconds again; emptying the box cancels the
+wait. The status bar at the bottom follows it: `program: query in 12 s ...`, `program 'EMRR1X3B13K2634A': querying Oracle ...`,
+then `program 'EMRR1X3B13K2634A': 13978 bin(s) queried` - or why it failed (a toast says so too). The CSV's folder is not shown
+there; it is in the log.
+
+The lookup is the Test Program query of the old WinForms app (`SQL_PROGRAM_BINS` in
+`pcs_oracle_portable/oracle_db.py`; the program name is a bind variable, never part of the SQL text).
+`oracle_db.py` is imported by its path and never edited here: replace the folder to update it. Of the three columns it
+returns (`PROGRAM_NAME`, `BIN_DESCRIPTION`, `BIN_NUMBER`) the CSV keeps two, each pair once, in the order Oracle sent them:
+
+```
+%TEMP%\pcs1stop_bins\bins_EMRR1X3B13K2634A.csv
+PROGRAM_NAME,BIN_NUMBER
+EMRR1X3B13K2634A,9103
+EMRR1X3B13K2634A,91030000
+...
+```
+
+`%TEMP%` is that of the user who runs PC1. The next lookup of the same program replaces the file - also when the program
+has no bins (a toast says so; only the header is left). If the file is open in another program (Excel locks it) the bins go
+to `bins_<program>_1.csv` (`_2`, ...) instead and a toast says so: a lookup never fails for that. In the file name every
+character other than letters, digits, `.`, `_` and `-` becomes `_`.
+
+What PC1 needs (`uv run pcs_oracle_portable\oracle_db.py --program <name>` tests all of it):
+
+* `oracle.portable_dir` with `oracle_client\bin` (the Oracle 11.2 x64 client - hence `oracledb<4`, which `uv sync`
+  installs) and `database_config\` (`TNSNAMES.ORA`, `sqlnet.ora`, `krb5.conf`);
+* a Windows user that has a Kerberos login to the database (`User Id=/`): the lookup uses the identity of the user who
+  runs PC1, not the visitor's.
+
+The app starts without the folder (the log warns), and a lookup then says what is missing. Oracle errors are shown as one
+line, with the hint of `oracle_db.py` where it has one (`ORA-12154`, `ORA-12641`, `DPI-1047`, ...).
+
+## Duplicate bins (Warning tab)
+
+Validation has one more step after `pcs_die_file_checker`: it looks for XOFYBIN rules whose bins lie completely inside the
+bins of another rule (`pcs_die_file/duplicates.py`, the logic of `dupilcate.md`). It is **only a warning**: the pcs_die_file
+stays valid and **Save stays on**.
+
+* The `Bins` of every rule become ranges of the 8 digits of a DB bin: `DB88050218` = `88050218-88050218`, `FB7006` =
+  `70060000-70069999` (padded with `0` for the start and `9` for the end), `IB70` = `70000000-70999999`, `FB8090-8099` =
+  `80900000-80999999`, `IB9-99` = `90000000-99999999`.
+* What stands in `[ ]` is a deliberate carve-out and is cut out: `IB70,[FB7056]` = `70000000-70559999` and
+  `70570000-70999999`. These *effective ranges* - never the text - are what rules are compared by.
+* A rule whose effective ranges lie completely inside those of another rule is a duplicate of it (two rules with the same
+  ranges are duplicates of each other). **Not** reported: a rule that only overlaps another one, and a rule that sits in a
+  carve-out (`FB7056` next to `IB70,[FB7056]`, `DB80905871` next to `FB8090-8099,[DB80905871]`) - that is on purpose.
+* Rules with `LowYield` in their name (any case) are skipped, and so is a rule whose Bins cannot be read (the checker
+  reports those).
+
+On the page the row of the duplicate turns **yellow** (red when the rule has an error as well), its **Note** cell says
+`Duplicate of <RuleName>` (`+N more` after three rules), the **Warning** tab - with a badge that counts them - lists every
+duplicate with its bins, its ranges and the rule it lies inside, and the status bar says `Validation: OK, 8 warning(s)`.
+The Note is information like Validation Error: it is not part of the file and cannot be edited.
+
+## Missing bins (Missing Bins tab)
+
+When a program has been looked up (Program box) the validation also compares its bins with the rules
+(`pcs_die_file/missing_bins.py`): the bins that **no rule has** are listed in the **Missing Bins** tab of the XOFYBIN table,
+one bin number per line (a badge counts them, the status bar says `Validation: OK, 120 bin(s) missing`). It is information
+only: it never makes the check fail and **Save stays on**. The check runs again whenever the rules change and whenever
+another program is looked up; with no program the tab says what to do.
+
+* The bins are read from the CSV the lookup saved (`PROGRAM_NAME` and `BIN_NUMBER`, see above) with Polars: the file is
+  scanned lazily (`polars.scan_csv`), only those two columns are read, and a bin counts once however often it is listed.
+  Rows whose `BIN_NUMBER` is no number of 1 to 8 digits are left out (the tab says how many).
+* A bin number stands for a range of the 8 digits of a DB bin, like the bins of a rule: `91030000` is itself (a DB), `9103`
+  is `91030000-91039999` (an FB), `91` is `91000000-91999999` (an IB). It is **in a rule** when that whole range lies inside
+  what the rules cover - so a rule with only `DB91030000` has that DB but not the FB `9103`.
+* A rule covers its `Bins` **without the `[ ]` parts**: they are not subtracted, so `IB70,[FB7056]` covers IB70 as a whole.
+* Rules with `LowYield` in their name (any case) are **not used**: they cover nearly everything and would hide every gap.
+  A token of a rule that is no bin is skipped (the checker reports it).
+* The list is sorted by bin, an FB before its DBs: `9103`, `91030000`, `91030001`, ..., `9104`, ...
+
 ## Task life cycle
 
 `PENDING -> ASSIGNED -> RUNNING -> COMPLETED | FAILED | TIMEOUT`
@@ -219,6 +300,8 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
   a redirect is never followed (it would carry the token on to wherever it points).
 * A pcs_die_file can name any path, including `\\any-server\share\...` - a check makes the worker PC contact that server.
   Set `allowed_roots` (`--allowed-root`) to the folders and shares your pcs_die_files really use.
+* The Program box makes PC1 query Oracle with PC1's own Kerberos login (read-only, the name is a bind variable) for
+  whoever can reach the site - the 10 seconds are a convenience of the page, not a rate limit.
 * Request bodies are size-checked before they are read, so a huge request is refused (413) with or without a token.
 
 ## Layout
@@ -228,11 +311,13 @@ app.py                  start-up: config, database, services, API, pages, schedu
 config.py, config.json  every path and knob (paths are relative to config.json)
 DpcConfig/V1.00/        AlarmIdMapping.xml for the pcs_die_file checker
 database/               SQLAlchemy models, SQLite engine (WAL, BEGIN IMMEDIATE), init_db
-services/               task_service, worker_service, timeout_monitor (+ path_checks: the check_path task, its tracker)
+services/               task_service, worker_service, timeout_monitor (+ path_checks: the check_path task, its tracker;
+                        program_bins: the Program box's Oracle lookup)
 api/                    task_api, worker_api, schemas, token check, request-size limit
 scheduler/monitor.py    runs the timeout monitor every 60 s
 ui/                     pcs_die_file_page (the editor), tasks_page, workers_page
-pcs_die_file/                 model.py (editable tables, undo, export), validation.py, pcs_die_file_checker.py
+pcs_die_file/                 model.py (editable tables, undo, export), validation.py, duplicates.py (the duplicate-bins step), missing_bins.py (the missing-bins step, reads the program's CSV with Polars), pcs_die_file_checker.py
+pcs_oracle_portable/    oracle_db.py + Oracle client + TNS files (oracle.portable_dir): imported by path, never edited
 worker/                 worker_agent.py + worker_config.json (stand-alone; the template of the PC2 package)
 deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts), iis/web.config
 dist/                   the built PC2 package (git-ignored: it holds the API token)

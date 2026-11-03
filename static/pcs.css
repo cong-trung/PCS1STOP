@@ -51,6 +51,14 @@ body {
   height: 34px;
 }
 
+.pcs-program {
+  width: 220px;
+}
+
+.pcs-program .q-field__control {
+  height: 34px;
+}
+
 .pcs-pathrow {
   flex: 0 0 auto;
   background: #fff;
@@ -154,6 +162,19 @@ body {
   padding: 0 8px;
 }
 
+/* a long message (the Program lookup's) is cut short with "..." - it must not squeeze the other texts of the bar */
+.pcs-status > * {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pcs-status > .pcs-program-status {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---- grids ----------------------------------------------------------------------------------- */
 .pcs-grid {
   width: 100%;
@@ -207,6 +228,11 @@ body {
 
 .pcs-grid .ag-row.pcs-row-err {
   background-color: #ffe3e8;
+}
+
+/* a warning only (e.g. the rule lies inside another rule's bins): the row is valid, Save stays on */
+.pcs-grid .ag-row.pcs-row-warn {
+  background-color: #fff3b0;
 }
 
 .pcs-grid .ag-row.pcs-row-ok {

@@ -1,0 +1,792 @@
+<ComponentRecipe checksum="6283e69584e3ef19d2e34534a9f9b537">
+	<BeginChecksum />
+	<Identity type="iLLIAD" datagroup="EMR_MCC_x2" name="Product_Die" id="a3402203-9109-4eb8-8306-69a6e065b24e" version="1270.ENG.001" asof="2013-08-07T14:00:38" />
+	<Template name="Product_Die_template" id="B343DF04-EDA3-440F-B9ED-2B520F586F68" />
+
+<!--ChangeLog and Revision History-->
+<!-- 
+	NEWEST REVISION AND COMMENTS AT THE TOP OF THIS LIST
+		
+ 	PCSReleaseEMR_v_001_100_000_000 2023WW04 - Moises Romero
+		- Initial Revision based on EMR XCC PCS Rules REV1, no binning changes as per TP owners.
+				
+ 	PCSReleaseEMR_v_001_200_000_000 2023WW17 - Moises Romero
+		- Transfering same rules aplied in EMR XCC
+		
+	PCSReleaseEMR_v_001_300_000_000 2023WW18 - Moises Romero
+		- Adding new 88031002 related to oepn ipc infrastructure issue.
+		
+	PCSReleaseEMR_v_001_300_000_000 2023WW19 - Moises Romero
+		- Removing end lot from 8805 bins since are not Open IPC issue related, spliting PCS rules with X3 insertion
+		- Adding RPB Swap bins
+		- Changing Repeat History lenght in Open IPC issues related to avoid unnecesary HS.
+
+	PCSReleaseEMR_v_001_500_000_000 2023WW41 - Gaven Haley, Soheila Eskandari, Moises Romero, Sallehan Ahmad Mamat, Abu Hasim Nur Hanis Shuhada.
+		-Change CollateralType on Replace_VCTIM rule to Cell_Socket
+		
+		PCSReleaseEMR_v_001_600_000_000 2023WW43 - Daniel Rojas/Moises Romero
+		-Thermals from 4/5 to 2/3
+		-Exclude IB29 from lowyield and change 8/10 to 5/10 equal to XCC
+		-Change 88050218 from 3/4 to 2/3 equal than XCC
+		-Deactivate XofY_Bin7906_RPB
+		-Update XofY 7906 RPB Detect with new Bins
+		-Add DB76091794 UPI_Check 2/2 for PRQ
+		-Change DB for memory config check to 79000374 & 79060374 for 2S and include 79000373 & 79060373 for 1S
+		
+	PCSReleaseEMRMCC_PHQ_001_600_000_001 2025 WW11 - PHQ# 12274670 - Carlos Perez 
+		- Adding rule XofY for bin 8004 due to repeated triggers of Linux timeouts on new TPs releases.
+	
+	PCSReleaseEMRMCC_v_001_600_000_002 2025 WW22 - PHQ# 12274670 - Carlos Perez 
+		- POR version of rule from PHQ 12274670.
+		
+	PCSReleaseEMRMCC_v_001_700_000_000 2025 WW34 - PHQ# 12407014 - Lucas Coto 
+		- Add new DB79061501 MARGIN_UPI 2/5 rule. No action escalate enable.
+	
+	PCSReleaseEMRMCC_PHQ_001_800_000_000 2026 WW04 - PHQ# 12524356 - Carlos Morales/Lucas Coto
+		- Change VCTIM Upperlimit set to 3000
+
+	PCSReleaseEMRMCC_PHQ_001_700_000_200 2026 WW05 - PHQ# 12528741 - Nguyen, Dang Vinh
+		- Add DB79001350,DB79001349 to rule name XofY_Bin7906_RPB_Swap
+		- Change WF for rule name XofY_Bin79061501_Margin_UPI to Socket-Socket-Escalate
+		- Add ResetAfterTriggerRegex=".*" for rule name XofY_LowYield
+		
+	PCSReleaseEMRMCC_PHQ_001_700_000_300 2026 WW06 - PHQ#12528741 - Nguyen, Dang Vinh
+		- Change WF for rule name XofY_Bin8713_EFIBootRepeat to Socket-Socket-Escalate
+		
+	PCSReleaseEMRMCC_PHQ_001_700_000_400 2026 WW07 - PHQ#12528741 - Nguyen, Dang Vinh
+		- Change rule name XofY_Bin8004_Linux from 2/3 to 3/5
+	
+	PCSReleaseEMRMCC_PHQ_001_700_000_500 2026 WW07 - PHQ#12528741 - Nguyen, Dang Vinh
+		- Change WF for rule name XofY_Bin88050218_EFIBoot to PowerCycle-Socket-Escalate
+		- Change WF for rule name XofY_Bin8713_EFIBootRepeat to PowerCycle-Socket-Escalate
+		- Change WF for rule name XofY_Bin88030218_EFIBoot to PowerCycle-Socket-Escalate
+		- Change WF for rule name XofY_Bin800x_Linux to PowerCycle-Socket-Escalate
+		- Change WF for rule name XofY_LowYield to Socket-BOTHsite-Escalate
+		
+	PCSReleaseEMRMCC_PHQ_001_700_000_500 2026 WW07 - PHQ#12528741 - Nguyen, Dang Vinh
+		- Change WF for rule name XofY_Bin8701_PowerOffTransition to PowerCycle-Socket-Escalate
+		
+	PCSReleaseEMRMCC_PHQ_001_700_000_700 2026 WW09 - PHQ#12528741 - Doan, Tuan Phong
+		- Change Low Yield rule from 5/10 to 7/12
+		- Exclude FB8004,8006 in Low Yield rule
+		- Change XofY_Bin79061501_Margin_UPI from 2/5 to 3/4
+		- Update WF for rule XofY_Bin79061501_Margin_UPI to PowerCycle-Socket-Escalate
+		
+	PCSReleaseEMRMCC_PHQ_001_700_000_800 2026 WW09 - PHQ#12528741 - Doan, Tuan Phong
+		- Add ResetAfterTriggerRegex="*" for all rules
+		
+	PCSReleaseEMRMCC_PHQ_001_700_000_900 2026 WW09 - PHQ#12528741 - Doan, Tuan Phong
+		- Add action PowerCycle for rule 8004
+		- Remove action PowerCycle for rule XofY_Bin79061501_Margin_UPI
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_100 2026 WW10 - PHQ#12528741 - Doan, Tuan Phong
+		- Change rule 7900 action to TH then socket
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_200 2026 WW14 - PHQ#12528741 - Nguyen, Cong Trung
+		- Change WF for rule name XofY_LowYield to Socket-ThermalHead-Escalate
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_300 2026 WW15 - PHQ#12667061 - Nguyen, Cong Trung
+		- Add FB9850 for XofY_Bin9850_Bin0 rule 1/1
+		- Add lot level rule name Lot_Level_9850
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_400 2026 WW15 - PHQ#12667061 - Nguyen, Cong Trung
+		- Change XofY_Bin9850_Bin0 from rule 1/1 to rule 2/2
+		
+	PCSReleaseEMRMCC_PHQ_001_800_000_500 2026 WW16 - PHQ#12667061 - Nguyen, Dang Vinh
+		- Add new rule Param_Inspect_VCTIM to inspect VCTIM at 500,1000,1500,2000,2500 cycle
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_600 2026 WW16 - PHQ#12667061 - Nguyen, Cong Trung
+		- Change Lot_Level_9850 from rule 8 to rule 16
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_700 2026 WW23 - PHQ#12667061 - Nguyen, Cong Trung
+		- Change RepeatTriggerHistoryLength of rule XofY_Bin8713_EFIBootRepeat from 8 to 20, WF to PowerCycle-Socket-ThermalHead-Escalate
+		- Change XofY_Bin8805_EFIBoot from rule 5/6 to rule 3/5
+		- Modify bin Bin800x_Linux to Bin8000_Linux, remove bin Bin8004_Linux, change rule from 3/4 to rule 3/5
+		- Change ClearScope of XofY_Bin88050218_EFIBoot from Bin8805 to Bin8803
+		- Add rule XofY_Bin7056_DragonBin 3/5 to catch Dragon failure
+		- Add rule XofY_Bin79060351_DMIRegisters 2/5 to catch marginal DMI
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_800 2026 WW27 - PHQ#12669896 - Nguyen, Cong Trung
+		- Change rule name from XofY_Bin809x_SDE to XofY_Bin8090_SDE
+		- Add rule XofY_Bin8006_Linux, rule 2/3, WF Socket-Escalate
+		- Exclude FB8004 and FB8006 from XofY_Bin8000_Linux
+		- Exclude DB88052829 from XofY_Bin8805_EFIBoot
+		- Rename XofY_Bin79061501_Margin_UPI to XofY_Bin7906_Margin_UPI, add DB79061821, DB79061822, DB79061823, DB79061794
+		- Rename XofY_Bin79060351_DMIRegisters to XofY_Bin7906_DMI, add DB79060119
+		- Add DB79060628 to XofY_Bin7906_RPB_Detect
+		- Add DB79001351, DB79001352, DB79001353 to XofY_Bin7906_RPB_Swap
+
+	PCSReleaseEMRMCC_PHQ_001_800_000_900 2026 WW27 - PHQ#12669896 - Nguyen, Cong Trung
+		- Modify DB79001351, DB79001352, DB79001353 to DB79061951, DB79061952, DB79061953
+		- Exclude FB8004 from XofY_Bin8006_Linux
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_000 2026 WW27 - PHQ#12669896 - Nguyen, Cong Trung
+		- Add rule XofY_Bin8004_Linux, rule 2/3, WF PowerCycle-Socket-Escalate
+		- Exclude FB8004 from XofY_Bin8000_Linux
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_001 2026 WW29 - PHQ#12669896 - Nguyen, Cong Trung
+		- Change rule XofY_Bin7906_PYTHON_Fail from 4/5 to 5/6
+		- Change rule XofY_Bin9850_Bin0 from 2/2 to 2/3
+		- Remove ClearScope for rule XofY_Bin7906_RPB_Detect and XofY_Bin7906_RPB_Swap
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_002 2026 WW29 - PHQ#12669896 - Nguyen, Cong Trung
+		- Change rule XofY_Bin8006_Linux to XofY_Bin80060956_Linux, add DB80060956 and DB88052829, remove FB8006
+		- Add FB8006 to XofY_Bin8004_Linux
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_003 2026 WW30 - PHQ#12669896 - Nguyen, Cong Trung
+		- Change rule XofY_Bin9171_TargetControl from 3/4 to 2/3
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_004 2026 WW32 - PHQ#12669896 - Nguyen, Cong Trung
+		- Add rule XofY_Bin7900_DUTQDF, rule 2/3, WF Socket-Escalate
+		- Change RepeatTriggerHistoryLength of rule XofY_Bin8713_EFIBootRepeat from 20 to 8
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_005 2026 WW33 - PHQ#12669896 - Nguyen, Cong Trung
+		- Change RepeatTriggerHistoryLength of rule XofY_Bin80060956_Linux from 50 to 15
+		- Change RepeatTriggerHistoryLength of rule XofY_Bin8004_Linux from 50 to 15
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_006 2026 WW34 - PHQ#12669896 - Nguyen, Cong Trung
+		- Add DB80905871, DB79061364 to rule XofY_Bin8713_EFIBootRepeat
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_007 2026 WW34 - PHQ#12669896 - Nguyen, Cong Trung
+		- Exclude DB80905871 from rule XofY_Bin8713_EFIBootRepeat
+		- Add rule XofY_Bin80905871, rule 2/5, WF PowerCycle-Socket-Escalate
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_008 2026 WW34 - PHQ#12669896 - Nguyen, Cong Trung
+		- Add DB88052829 to XofY_Bin88050218_EFIBoot
+		- Disable rule XofY_Bin80060956_Linux
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_009 2026 WW35 - PHQ#12669896 - Nguyen, Cong Trung
+		- Add rule XofY_Bin80060956_Linux, rule 2/3, WF Socket-Escalate
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_010 2026 WW36 - PHQ#12669896 - Nguyen, Cong Trung
+		- Add FB7004, FB7006, FB7054 to XofY_Bin7056_DragonBin, change rule to 2/5
+		
+	PCSReleaseEMRMCC_PHQ_001_900_000_011 2026 WW37 - PHQ#12669896 - Nguyen, Cong Trung
+		- Change rule to 3/5 XofY_Bin7056_DragonBin, WF Socket-Socket-Escalate
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_012 2026 WW40 - PHQ#12747320 - Nguyen, Cong Trung
+		- Change rule to 2/5 XofY_Bin8090_SDE, WF Socket-Socket-Escalate
+
+	PCSReleaseEMRMCC_PHQ_001_900_000_012 2026 WW42 - PHQ#12747320 - Nguyen, Cong Trung
+		- Add rule XofY_LowYield_Cover to cover all FB
+-->
+
+
+	<SharedConfigurations>
+		<ConfigGroup Key="Check_DUT_Orientation">
+			<Workflow Path="M:\pcs\prod\emr\emr_mcc\workflows\Check_DUT_Orientation.xml"></Workflow>
+		</ConfigGroup>
+
+		<ConfigGroup Key="SST_PCSLotLimit_B9850">
+			<Workflow Path="M:\pcs\prod\emr\emr_xcc\workflows\SST_PCSLotLimit_B9850.xml"></Workflow>
+		</ConfigGroup>
+		
+		<ConfigGroup Key="InspectVCTIM">
+			<Workflow Path="M:\pcs\prod\emr\emr_mcc\workflows\HST_VCTIM_MIDDLE_CHECK.xml"></Workflow>
+		</ConfigGroup>
+
+	</SharedConfigurations>
+	
+	<OverflowTokens>
+	</OverflowTokens>
+	
+<!--	EWMA Example
+	<RuleGroup GroupName="BinEWMA">
+		<BinEWMA Lambda=".1" MinN="3" Target="0" UseRetestUnitDataOnlyIfChangedBin="true" SoftReset = "TriggeredTypeOnly" Autoclear="false" RetargetAfterTrigger="true" SaveRuleOutput="True" CollateralType="Cell_Socket" >
+			<RepeatTriggerGroup RuleName="EWMA_Bin09" FailingBins="FB900-999" RepeatTriggerHistoryLength="20" UpperLimit="0.31">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Message="EWMA Bin09 ThermalHead" />
+			</RepeatTriggerGroup>
+		</BinEWMA>
+	</RuleGroup>
+-->	
+	
+	<RuleGroup GroupName="Lot_level_PCS">
+		<!-- Lot Level PCS for B9850 -->
+		<LotLimit RuleName="Lot_Level_9850" CollateralType="Cell" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" IncludeBins="FB9850" TriggerQuantity="16" ResetAtSummary="True" ResetAtTrigger="True">
+			<Alarm Severity="ParameterControlWarning_3" Rule="LotLimit" BinOrToken="Massive_B9850" Action="ConfigKey" ConfigKey="SST_PCSLotLimit_B9850"/>
+		</LotLimit>
+	</RuleGroup>
+		
+	<RuleGroup GroupName="XofYBinGroup" ValidLotTypes="PROD">
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB9180"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin9180_GeneralHardwareFailure" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9180_GeneralHWFailure"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9180_GeneralHWFailure"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+	
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB88050218,DB88051002,DB88052829"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin8803">
+			<RepeatTriggerGroup RuleName="XofY_Bin88050218_EFIBoot" RepeatTriggerHistoryLength="15">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin88050218_EFIBoot"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin88050218_EFIBoot"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin88050218_EFIBoot"  Action="Escalate"/>				
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB9850"  X="2" Y="3" ResetAfterTrigger="True" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False">
+			<RepeatTriggerGroup RuleName="XofY_Bin9850_Bin0" RepeatTriggerHistoryLength="15">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9850_Bin0"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9850_Bin0"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9850_Bin0"  Action="ThermalHead"/>
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9850_Bin0"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+	
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB88030218"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin8803">
+			<RepeatTriggerGroup RuleName="XofY_Bin88030218_EFIBoot" RepeatTriggerHistoryLength="15">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin88030218_EFIBoot"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin88030218_EFIBoot"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin88030218_EFIBoot"  Action="Escalate"/>				
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+	
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8805,[DB88050218],[DB88051002],[DB88052829]"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin8805">
+			<RepeatTriggerGroup RuleName="XofY_Bin8805_EFIBoot" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8805_EFIBoot"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8805_EFIBoot"  Action="Escalate"/>				
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB87130502,DB87130218,DB87131002,DB88031002,DB79061364"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin8803">
+			<RepeatTriggerGroup RuleName="XofY_Bin8713_EFIBootRepeat" RepeatTriggerHistoryLength="8">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8713_EFIRepeat"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8713_EFIRepeat"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8713_EFIRepeat"  Action="ThermalHead"/>
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8713_EFIRepeat"  Action="Escalate"/>				
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+		
+	    <XOFYBIN CollateralType="Cell_Socket" Bins="FB8713"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin8713">
+			<RepeatTriggerGroup RuleName="XofY_Bin8713_EFIBoot" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8713_EFIBoot"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8713_EFIBoot"  Action="Escalate"/>				
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8835"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8835_WINDOWSSTAGE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8835_WINDOWSSTAGE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8835_WINDOWSSTAGE"  Action="BOTHsite"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8835_WINDOWSSTAGE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>		
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB80062229"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8006_LINUXFAILEDIFS" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8805_LINUXFAILEDIFS"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8805_LINUXFAILEDIFS"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>		
+			
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8841,FB8845"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin884x_LinuxBoot" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin884x_LinuxBoot"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin884x_LinuxBoot"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8701"  X="2" Y="2" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8701_PowerOffTransition" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8701_PowerOffTransition"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8701_PowerOffTransition"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8701_PowerOffTransition"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8803"  X="5" Y="6" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin8803"> 
+			<RepeatTriggerGroup RuleName="XofY_Bin8803_BootHalt" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8803_Boothalt"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8803_Boothalt"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79040324,DB79060324"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin790x0175_BiosFlash" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin790x0175_BiosFlash"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin790x0175_BiosFlash"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="IB9-99,[IB29],[FB8004],[FB8006]"  X="7" Y="12" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_LowYield" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="LowYield"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="LowYield"  Action="ThermalHead"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="LowYield"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7056,FB7054,FB7004,FB7006"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False">
+			<RepeatTriggerGroup RuleName="XofY_Bin7056_DragonBin" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7056_DragonBin"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7056_DragonBin"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7056_DragonBin"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="IB70,[FB7056]"  X="6" Y="8" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin70xx_DragonBinSwitching" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin70xx_DragonBinSwitching"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin70xx_DragonBinSwitching"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>		
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8090-8099,[DB80905871]"  X="2" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8090_SDE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDE"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB80905871"  X="2" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin80905871" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin80905871"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin80905871"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin80905871"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79000004,DB79060004"  X="1" Y="1" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7900_VMVersion" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_VMVersion"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_VMVersion"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79061501,DB79061821,DB79061822,DB79061823,DB79061794"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_Margin_UPI" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_Margin_UPI"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_Margin_UPI"  Action="Escalate"/>	
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79060351,DB79060119"  X="2" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_DMI" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_DMI"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_DMI"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79000005,DB79060005,DB79000128,DB79060128"  X="1" Y="1" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7900_SATAVersion" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_SATAVersion"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_SATAVersion"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79000001,DB79000002,DB79000007,DB79000008,DB79000378,DB79060001,DB79060002,DB79060007,DB79060008,DB79060378"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7900_Thermals" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_Thermals"  Action="ThermalHead"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_Thermals"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_Thermals"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79000107"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin79" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7900_DUTQDF" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_DUTQDF"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_DUTQDF"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_DUTQDF"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB9091"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin9091_Thermals" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9091_Thermals"  Action="BOTHsite"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9091_Thermals"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB9114"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin9114_Thermals" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9114_Thermals"  Action="ThermalHead"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9114_Thermals"  Action="BOTHsite"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9114_Thermals"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB9009,FB9190"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_SWException" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="BinSWException"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="BinSWException"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8000-8009,[FB8006],[FB8004]"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8000_Linux" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8000_Linux"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8000_Linux"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8000_Linux"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB80060956"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin80060956_Linux" RepeatTriggerHistoryLength="15">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin80060956_Linux"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin80060956_Linux"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8004,FB8006,[DB80062229],[DB80060956]"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8004_Linux" RepeatTriggerHistoryLength="15">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8004_Linux"  Action="PowerCycle"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8004_Linux"  Action="Socket"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8004_Linux"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+			
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79060107"  X="2" Y="2" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False"  ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_IncorrectQDF" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_IncorrectQDF"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79060106"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False"  ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_FAILED_CHECKDUTORIENTATION" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_CHECKDUTORIENTATION"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_CHECKDUTORIENTATION"  Action="ConfigKey" ConfigKey="Check_DUT_Orientation"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_CHECKDUTORIENTATION"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79060374,DB79000374,DB79060373,DB79000373"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False"  ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_FAILED_CHECKMEMORYDIMMCONFIG" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_CHECKMEMORYDIMMCONFIG"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_CHECKMEMORYDIMMCONFIG"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7500"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7500_SVOS_Undifined" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7500_SVOS_Undifined"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7500_SVOS_Undifined"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7501"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7501_SVOS_SETUP" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7501_SVOS_SETUP"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7501_SVOS_SETUP"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7502"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7502_SVOS_Startup" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7502_SVOS_Startup"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7502_SVOS_Startup"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7503"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7503_SVOS_Startup_MCE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7503_SVOS_Startup_MCE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7503_SVOS_Startup_MCE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7504"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7504_SVOS_Timeout" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7504_SVOS_Timeout"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7504_SVOS_Timeout"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7505"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7505_SVOS_Timeout_MCE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7505_SVOS_Timeout_MCE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7505_SVOS_Timeout_MCE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7506"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7506_SVOS_Failed" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7506_SVOS_Failed"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7506_SVOS_Failed"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7507"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7507_SVOS_Failed_MCE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7507_SVOS_Failed_MCE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7507_SVOS_Failed_MCE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7508"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7508_SVOS_Sys_Error" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7508_SVOS_Sys_Error"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7508_SVOS_Sys_Error"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7509"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7509_SVOS_Stopped" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7509_SVOS_Stopped"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7509_SVOS_Stopped"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7901"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7901_PYTHON_SETUP" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7901_PYTHON_SETUP"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7901_PYTHON_SETUP"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7902"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7902_PYTHON_Startup" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7902_PYTHON_Startup"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7902_PYTHON_Startup"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7903"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7903_PYTHON_Startup_MCE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7903_PYTHON_Startup_MCE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7903_PYTHON_Startup_MCE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7904"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7904_PYTHON_Timeout" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7904_PYTHON_Timeout"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7904_PYTHON_Timeout"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7905"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7905_PYTHON_Timeout_MCE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7905_PYTHON_Timeout_MCE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7905_PYTHON_Timeout_MCE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7906"  X="5" Y="6" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_PYTHON_Fail" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_PYTHON_Fail"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_PYTHON_Fail"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7907"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7907_PYTHON_Fail_MCE" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7907_PYTHON_Fail_MCE"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7907_PYTHON_Fail_MCE"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7908"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7908_PYTHON_SYS_ERROR" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7908_PYTHON_SYS_ERROR"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7908_PYTHON_SYS_ERROR"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7909"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7909_PYTHON_Stopped" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7909_PYTHON_Stopped"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7909_PYTHON_Stopped"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8990"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8990_GENERAL_UNDEFINED_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8990_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8990_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8991"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8991_GENERAL_SETUP_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8991_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8991_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8992"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8992_GENERAL_STARTUP_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8992_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8992_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8993"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8993_GENERAL_STARTUP_MCE_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8993_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8993_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8994"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8994_GENERAL_TIMEOUT_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8994_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8994_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8995"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8995_GENERAL_TIMEOUT_MCE_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8995_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8995_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8996"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8996_GENERAL_FAILED_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8996_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8996_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8997"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8997_GENERAL_FAILED_MCE_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8997_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8997_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8998"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8998_GENERAL_SYS_ERROR_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8998_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8998_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8999"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8999_GENERAL_STOPPED_SVOSDELAY" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8999_GENERAL_SVOSDELAY"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8999_GENERAL_SVOSDELAY"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		
+<!--	<XOFYBIN CollateralType="Cell_Socket" Bins="FB8099"  X="3" Y="4" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8099_SDEStopped" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8099_SDEStopped"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8099_SDEStopped"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+-->		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB7900"  X="5" Y="6" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False"  ClearScope="Bin79">
+			<RepeatTriggerGroup RuleName="XofY_Bin7900_Generic" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_Generic"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7900_Generic"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB9171"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin9171_TargetControl" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9171_TargetControl"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9171_TargetControl"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+<!--		<XOFYBIN CollateralType="Cell_Socket" Bins="FB8090"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin8090_SDEUndefined" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDEUndefined"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDEUndefined"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+-->
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79061315,DB79061314,DB79061316,DB79061317,DB79061323,DB79061725,DB79060628"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_RPB_Detect" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_RPB_Detect"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_RPB_Detect"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+		
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB79061346,DB79061347,DB79061348,DB79061349,DB79061350,DB79061951,DB79061952,DB79061953"  X="3" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin7906_RPB_Swap" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_RPB_Swap"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin7906_RPB_Swap"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="DB91070004"  X="1" Y="1" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_Bin9107_DoubleStack" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9107_DoubleStack"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin9107_DoubleStack"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+<!--		<XOFYBIN CollateralType="Cell_Socket" Bins="DB80901799"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin80">
+			<RepeatTriggerGroup RuleName="XofY_Bin8090_SDEUndefined" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDEUndefined"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8090_SDEUndefined"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>	
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB80941599"  X="2" Y="3" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" ClearScope="Bin80">
+			<RepeatTriggerGroup RuleName="XofY_Bin8094_SDETimeout" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8094_SDETimeout"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="Bin8094_SDETimeout"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+-->		
+
+		<XOFYBIN CollateralType="Cell_Socket" Bins="FB3500-3503,FB4900-4905,FB7000-7009,[FB7004],[FB7006],FB7050-7069,[FB7054],[FB7056],FB8070-8079,FB8700,FB8702-8712,FB8714-8719,FB8750,FB8760,FB8770,FB8780-8781,FB8784-8787,FB8790,FB8800-8802,FB8804,FB8806-8809,FB8830-8879,FB9000-9019,FB9090-9094,FB9100-9202"  X="4" Y="5" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" >
+			<RepeatTriggerGroup RuleName="XofY_LowYield_Cover" RepeatTriggerHistoryLength="50">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="LowYield_Cover"  Action="Socket"/>
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="LowYield_Cover"  Action="BOTHsite"/>
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY"  BinOrToken="LowYield_Cover"  Action="Escalate"/>
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+	</RuleGroup>
+	
+	<RuleGroup GroupName="ParametricXY">
+		<XOFYPARAMETRIC CollateralType="Cell_Socket"  X="9" Y="10" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" RepeatTriggerHistoryLength="50" >
+			<RepeatTriggerGroup RuleName="XofYParam_PCS_STIM_HOT_FeedbackTemp_STDDEV" ParameterName="PCS_STIM_HOT_FeedbackTemp_STDDEV" UpperLimit="9" >
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofYParam" BinOrToken="PCS_STIM_HOT_FBTemp_STDDEV" Action="ThermalHead" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofYParam" BinOrToken="PCS_STIM_HOT_FBTemp_STDDEV" Action="Escalate" />
+			</RepeatTriggerGroup>
+
+		</XOFYPARAMETRIC>
+	
+	</RuleGroup>
+
+
+	<RuleGroup GroupName="Replace_VCTIM">
+		<Parametric CollateralType="Cell_Socket" LowerFilter="0" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Replace_VCTIM" Severity="ParameterControlWarning_3" ParameterName="PCS_STIM_TH_PMCYCLECOUNT" UpperLimit="3000" Rule="Param" BinOrToken="Replace_VCTIM" Action="ReplaceVCTIM"   />
+		</Parametric>
+		<Parametric CollateralType="Cell_Socket" UpperFilter="501" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Inspect_VCTIM_1st" Severity="ParameterControlWarning_3" ParameterName="PCS_STIM_TH_PMCYCLECOUNT" UpperLimit="500" Rule="Param" BinOrToken="Inspect_VCTIM" Action="ConfigKey" ConfigKey="InspectVCTIM"/>
+		</Parametric>
+		<Parametric CollateralType="Cell_Socket" UpperFilter="1001" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Inspect_VCTIM_2nd" Severity="ParameterControlWarning_3" ParameterName="PCS_STIM_TH_PMCYCLECOUNT" UpperLimit="1000" Rule="Param" BinOrToken="Inspect_VCTIM" Action="ConfigKey" ConfigKey="InspectVCTIM"/>
+		</Parametric>
+		<Parametric CollateralType="Cell_Socket" UpperFilter="1501" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Inspect_VCTIM_3rd" Severity="ParameterControlWarning_3" ParameterName="PCS_STIM_TH_PMCYCLECOUNT" UpperLimit="1500" Rule="Param" BinOrToken="Inspect_VCTIM" Action="ConfigKey" ConfigKey="InspectVCTIM"/>
+		</Parametric>
+		<Parametric CollateralType="Cell_Socket" UpperFilter="2001" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Inspect_VCTIM_4th" Severity="ParameterControlWarning_3" ParameterName="PCS_STIM_TH_PMCYCLECOUNT" UpperLimit="2000" Rule="Param" BinOrToken="Inspect_VCTIM" Action="ConfigKey" ConfigKey="InspectVCTIM"/>
+		</Parametric>
+		<Parametric CollateralType="Cell_Socket" UpperFilter="2501" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Inspect_VCTIM_5th" Severity="ParameterControlWarning_3" ParameterName="PCS_STIM_TH_PMCYCLECOUNT" UpperLimit="2500" Rule="Param" BinOrToken="Inspect_VCTIM" Action="ConfigKey" ConfigKey="InspectVCTIM"/>
+		</Parametric>
+	</RuleGroup> 
+	
+	<RuleGroup GroupName="Clean_Socket">
+		<Parametric CollateralType="Cell_Socket" LowerFilter="0" UseRetestUnitData="true" SoftReset = "TriggeredTypeOnly" TriggerType="Scheduled" >
+				<Alarm RuleName="Param_Clean_Socket" Severity="ParameterControlWarning_3" ParameterName="CleaningCycleCount" UpperLimit="80000" Rule="Param" BinOrToken="CleanSocket" Action="CleanSocket"   />
+		</Parametric> 
+	</RuleGroup> 	
+	
+<!--	Chi^2 examples
+	<RuleGroup GroupName="BinChiSquare_PS2" ValidProcessSteps="CLASSROOM">
+		<ChiSquared CollateralType="Cell_Socket" SaveRuleOutput="True" Autoclear="False" UseRetestUnitDataOnlyIfChangedBin="true" outputvaluetype="Percentage">	
+			<RepeatTriggerGroup RuleName="ChiSquare_B98" Bins="FB9800-9899" RepeatTriggerHistoryLength="100" MEV="0.1" PCritical="1E-8" >
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="ChiSquare" BinOrToken="Bin98" Action="ThermalHead"/>
+			</RepeatTriggerGroup>			
+		</ChiSquared>
+	</RuleGroup>
+	<RuleGroup GroupName="BinChiSquare_PS3" ValidProcessSteps="CLASSCOLD">
+		<ChiSquared CollateralType="Cell_Socket" SaveRuleOutput="True" Autoclear="False" UseRetestUnitDataOnlyIfChangedBin="true" outputvaluetype="Percentage">	
+			<RepeatTriggerGroup RuleName="ChiSquare_B99" Bins="FB9900-9999" RepeatTriggerHistoryLength="100" MEV="0.1" PCritical="1E-8" >
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="ChiSquare" BinOrToken="Bin99" Action="ThermalHead"/>
+			</RepeatTriggerGroup>			
+		</ChiSquared>
+	</RuleGroup>	
+-->
+</ComponentRecipe>

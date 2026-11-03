@@ -5,11 +5,20 @@ cells (Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+Z / Ctrl+Y all work), add rows to the XOF
 and delete rows (trash icon) -> Save downloads the edited XML.
 
 The pcs_die_file is checked again a moment after every change; Save stays disabled while the check reports errors.
+The check also has a warning step: an XOFYBIN rule whose bins lie inside another rule's bins (``pcs_die_file.duplicates``)
+gets a yellow row, a read-only Note ("Duplicate of <rule>") and an entry in the Warning tab.  Warnings never block Save.
+And once a program has been looked up (see the Program box below) the bins in its CSV that no rule has
+(``pcs_die_file.missing_bins``) are listed in the Missing Bins tab - information only, it never blocks Save either.
 
 The workflow paths are always checked, nobody has to ask: when a pcs_die_file is opened, when a path is added or changed,
 and when the Product box changes, every path that has not been checked yet goes to a PC2 worker as one ``check_path``
 task.  The task payload is the Path plus the Product box value (SST / HST); the worker's answer shows in the read-only
 Check column.  The answers are information only - they never block Save.
+
+The Program box (toolbar) takes the name of a test program.  Once it has been left alone for PROGRAM_DELAY seconds
+(10 - every keystroke starts the wait again) its value is recorded and ``ProgramBinsService`` looks the program's bins up
+in Oracle and saves PROGRAM_NAME + BIN_NUMBER as a CSV in the temp folder.  The status bar at the bottom shows how far it
+got.  The Program box never changes the open pcs_die_file; its bins are only compared with the rules.
 """
 
 from __future__ import annotations
@@ -17,7 +26,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import time
+from pathlib import Path
 
 from nicegui import events, run, ui
 
@@ -34,7 +45,7 @@ from pcs_die_file.model import (
     PcsDieFileDoc,
     PcsDieFileError,
 )
-from services import Services
+from services import ProgramBinsError, Services
 from services import path_checks as pc
 
 from .common import TEAL, add_assets, notify
@@ -43,6 +54,8 @@ log = logging.getLogger("pcs.ui")
 
 #: seconds the pcs_die_file has to stay untouched before it is checked again
 RECHECK_DELAY = 0.8
+#: seconds the Program box has to stay untouched before its value is recorded and looked up in Oracle
+PROGRAM_DELAY = 10.0
 #: seconds between two looks at the path-check tasks while some are unfinished
 PATH_POLL_SECONDS = 1.5
 #: seconds to wait before the paths are sent again after the queue (database) could not be reached: grows with every
@@ -92,6 +105,7 @@ COLUMN_OPTIONS: dict[str, dict[str, dict]] = {
         "comment": {"flex": 2, "minWidth": 140},
         "bin_or_token": {"flex": 2, "minWidth": 130},
         "error": {"flex": 3.5, "minWidth": 220},
+        "note": {"flex": 4, "minWidth": 200},
     },
 }
 
@@ -129,6 +143,39 @@ def column_defs(table: str) -> list[dict]:
     return defs
 
 
+#: what the Missing Bins tab says before there is a pcs_die_file or a program to compare
+MISSING_HINT = "Open a pcs_die_file and type a program name in the Program box: the bins of that program that no rule has are listed here."
+
+
+def validation_status(res: rv.CheckResult) -> str:
+    """Status bar text of a finished check, e.g. ``Validation: OK, 8 warning(s), 120 bin(s) missing  (0.3s)``."""
+    status = "Validation: OK" if res.ok else f"Validation: {res.n_errors} error(s)"
+    if res.n_warnings:
+        status += f", {res.n_warnings} warning(s)"
+    if res.n_missing:
+        status += f", {res.n_missing} bin(s) missing"
+    return f"{status}  ({res.seconds:.1f}s)"
+
+
+def validation_notice(res: rv.CheckResult) -> tuple[str, str]:
+    """What the Validate button says in its toast: (text, kind).  Warnings and missing bins are told, never an error."""
+    if not res.ok:
+        return f"{res.n_errors} error(s) - see the Error tab.", "warning"
+    found = []
+    if res.n_warnings:
+        found.append(f"{res.n_warnings} warning(s), see the Warning tab")
+    if res.n_missing:
+        found.append(f"{res.n_missing} bin(s) missing, see the Missing Bins tab")
+    if found:
+        return "No errors found - " + "; ".join(found) + ".", "warning"
+    return "No errors found.", "positive"
+
+
+def program_status(program: str, n_bins: int) -> str:
+    """Status bar text of a finished Program lookup: the name and how many bins Oracle sent - no folder, no time."""
+    return f"program '{program}': {n_bins} bin(s) queried"
+
+
 class PcsDieFilePage:
     """One browser tab = one instance (own document, own undo stack)."""
 
@@ -141,7 +188,8 @@ class PcsDieFilePage:
         self.product = settings.product
         self.check: rv.CheckResult | None = None  # the last finished check ...
         self.checked_doc: PcsDieFileDoc | None = None  # ... of this document ...
-        self.checked_rev = -1  # ... as it was in this revision
+        self.checked_rev = -1  # ... as it was in this revision ...
+        self.checked_seq = -1  # ... and with this program (see program_seq)
         self.recheck_at: float | None = (
             None  # monotonic time at which the automatic re-check is due
         )
@@ -161,6 +209,13 @@ class PcsDieFilePage:
             0  # times in a row the queue could not be reached when the paths were sent
         )
         self.report_paths = False  # True until the checks of an upload / product change have been reported
+        # the Program box (see the module docstring)
+        self.program = ""  # the recorded value: what the box held after PROGRAM_DELAY seconds of rest
+        self.program_at: float | None = (
+            None  # monotonic time at which the box's value is due to be recorded
+        )
+        self.program_csv: Path | None = None  # the CSV of the last good lookup: what the Missing Bins check reads
+        self.program_seq = 0  # changes whenever program_csv does, so a check knows its answer is about an older program
         self.grids: dict[str, ui.aggrid] = {}
         self.needs_doc: list = []
 
@@ -188,6 +243,7 @@ class PcsDieFilePage:
         )
         ui.timer(0.3, self.recheck_tick)
         ui.timer(0.5, self.path_tick)
+        ui.timer(0.5, self.program_tick)
         self.refresh_buttons()
 
     def _toolbar(self) -> None:
@@ -240,6 +296,15 @@ class PcsDieFilePage:
                 "Workers - the PC2 machines (opens in a new tab)",
                 "blue-grey-8",
             ).props("href=/workers target=_blank")
+            self.program_input = (
+                ui.input(label="Program", on_change=self.on_program)
+                .props("dense outlined clearable")
+                .classes("pcs-program")
+                .tooltip(
+                    "Test program name - its bins are looked up in Oracle "
+                    f"{PROGRAM_DELAY:.0f} s after you stop typing"
+                )
+            )
             (
                 ui.select(
                     list(PRODUCTS),
@@ -308,7 +373,8 @@ class PcsDieFilePage:
                 ":cellClassRules": '{"pcs-sel": p => window.pcs.inRange(p), "pcs-editable": p => window.pcs.isEditable(p)}',
             },
             ":rowClassRules": '{"pcs-row-err": p => !!p.data && !!p.data.error && p.data.error !== "OK", '
-            '"pcs-row-ok": p => !!p.data && p.data.error === "OK"}',
+            '"pcs-row-warn": p => !!p.data && p.data.error === "OK" && !!p.data.note, '
+            '"pcs-row-ok": p => !!p.data && p.data.error === "OK" && !p.data.note}',
             "stopEditingWhenCellsLoseFocus": True,
             "rowHeight": 28,
             "headerHeight": 30,
@@ -364,7 +430,13 @@ class PcsDieFilePage:
                 with ui.tab("Error"):
                     self.err_badge = ui.badge("0", color="negative").props("floating")
                     self.err_badge.set_visibility(False)
-            # Both panes stay mounted (a Quasar tab panel would detach the grid from the page while hidden,
+                with ui.tab("Warning"):
+                    self.warn_badge = ui.badge("0", color="orange-8").props("floating")
+                    self.warn_badge.set_visibility(False)
+                with ui.tab("Missing Bins"):
+                    self.miss_badge = ui.badge("0", color="blue-grey-7").props("floating")
+                    self.miss_badge.set_visibility(False)
+            # All panes stay mounted (a Quasar tab panel would detach the grid from the page while hidden,
             # and the server's updates - undo, validation - would then miss it).
             with ui.element("div").classes("pcs-panels w-full"):
                 self.rule_pane = ui.element("div").classes("pcs-gridwrap w-full h-full")
@@ -376,10 +448,22 @@ class PcsDieFilePage:
                         "Open a pcs_die_file to see the pcs_die_file_checker output here."
                     ).classes("pcs-errtext")
                 self.err_pane.set_visibility(False)
+                self.warn_pane = ui.element("div").classes("w-full h-full")
+                with self.warn_pane:
+                    self.warn_text = ui.label(
+                        "Open a pcs_die_file to see its warnings here."
+                    ).classes("pcs-errtext")
+                self.warn_pane.set_visibility(False)
+                self.miss_pane = ui.element("div").classes("w-full h-full")
+                with self.miss_pane:
+                    self.miss_text = ui.label(MISSING_HINT).classes("pcs-errtext")
+                self.miss_pane.set_visibility(False)
 
     def show_tab(self, name: str) -> None:
         self.rule_pane.set_visibility(name == "Rule")
         self.err_pane.set_visibility(name == "Error")
+        self.warn_pane.set_visibility(name == "Warning")
+        self.miss_pane.set_visibility(name == "Missing Bins")
 
     def _status_bar(self) -> None:
         bar = {"value": 0, "show_value": False}
@@ -392,6 +476,14 @@ class PcsDieFilePage:
             )
             self.val_label = ui.label("Validation Status")
             self.val_bar = (
+                ui.linear_progress(**bar)
+                .props("size=10px rounded color=white track-color=teal-9")
+                .classes("w-24")
+            )
+            self.program_label = ui.label("Program Status").classes("pcs-program-status")
+            with self.program_label:
+                ui.tooltip().bind_text_from(self.program_label, "text")
+            self.program_bar = (
                 ui.linear_progress(**bar)
                 .props("size=10px rounded color=white track-color=teal-9")
                 .classes("w-24")
@@ -603,9 +695,12 @@ class PcsDieFilePage:
 
     # ------------------------------------------------------------------------------------- validation
     def is_stale(self) -> bool:
-        """True when the open pcs_die_file has changed since the last finished check."""
+        """True when the open pcs_die_file - or the program it is compared with - has changed since the last finished
+        check."""
         return self.doc is not None and (
-            self.checked_doc is not self.doc or self.checked_rev != self.doc.revision
+            self.checked_doc is not self.doc
+            or self.checked_rev != self.doc.revision
+            or self.checked_seq != self.program_seq
         )
 
     async def recheck_tick(self) -> None:
@@ -626,7 +721,7 @@ class PcsDieFilePage:
             if doc is None:
                 return
             cfg = self.current_settings()
-            rev = doc.revision
+            rev, seq, csv_path = doc.revision, self.program_seq, self.program_csv
             self.set_progress(self.val_bar, True)
             self.val_label.set_text("Validating ...")
             try:
@@ -637,29 +732,39 @@ class PcsDieFilePage:
                     cfg.alarm_map,
                     cfg.skip_workflow_check,
                     cfg.bin_digit_exceptions,
+                    doc.bin_rules(),
+                    csv_path,
                 )
             finally:
                 self.set_progress(self.val_bar, False)
             if self.doc is not doc:  # another file was opened meanwhile
                 return
             if (
-                doc.revision != rev
-            ):  # edited while the checker ran: its answer is about an older state
+                doc.revision != rev or self.program_seq != seq
+            ):  # edited / another program meanwhile: the answer is about an older state
                 self.val_label.set_text("Validation: pending ...")
                 self.val_bar.set_value(0)
                 self.recheck_at = time.monotonic() + 0.2
                 return
-            self.check, self.checked_doc, self.checked_rev = res, doc, rev
-            updates = doc.set_validation(res.per_rule)
+            self.check, self.checked_doc, self.checked_rev, self.checked_seq = (
+                res,
+                doc,
+                rev,
+                seq,
+            )
+            updates = doc.set_validation(res.per_rule, res.notes)
             if not initial:
                 self.push(updates)
             self.err_text.set_text(res.text)
             self.err_badge.set_text(str(res.n_errors))
             self.err_badge.set_visibility(not res.ok)
-            self.val_label.set_text(
-                ("Validation: OK" if res.ok else f"Validation: {res.n_errors} error(s)")
-                + f"  ({res.seconds:.1f}s)"
-            )
+            self.warn_text.set_text(res.warning_text)
+            self.warn_badge.set_text(str(res.n_warnings))
+            self.warn_badge.set_visibility(res.n_warnings > 0)
+            self.miss_text.set_text(res.missing_text)
+            self.miss_badge.set_text(str(res.n_missing))
+            self.miss_badge.set_visibility(res.n_missing > 0)
+            self.val_label.set_text(validation_status(res))
             self.refresh_buttons()
 
     async def validate(self) -> None:
@@ -672,12 +777,7 @@ class PcsDieFilePage:
         await self.run_validation()
         if self.check is None or self.is_stale():
             return  # edited again while it ran: the automatic re-check will report
-        notify(
-            "No errors found."
-            if self.check.ok
-            else f"{self.check.n_errors} error(s) - see the Error tab.",
-            "positive" if self.check.ok else "warning",
-        )
+        notify(*validation_notice(self.check))
 
     # ------------------------------------------------------------------------------------- path checks
     def schedule_path_checks(self, delay: float = RECHECK_DELAY) -> None:
@@ -783,6 +883,96 @@ class PcsDieFilePage:
                 if {pc.check_kind(text) for text in shown} <= {"ok"}
                 else "warning",
             )
+
+    # ------------------------------------------------------------------------------------- program bins
+    def on_program(self, e: events.ValueChangeEventArguments) -> None:
+        """The Program box changed: its value is recorded (and looked up in Oracle) once it has been left alone for
+        PROGRAM_DELAY seconds - every keystroke starts the wait again."""
+        if (e.value or "").strip():
+            self.program_at = time.monotonic() + PROGRAM_DELAY
+            return
+        # emptied: nothing to wait for, nothing to look up
+        self.program_at, self.program = None, ""
+        self.set_progress(self.program_bar, False)
+        self.program_bar.set_value(0)
+        self.program_label.set_text("Program Status")
+        self.set_program_csv(None)
+
+    def set_program_csv(self, path: Path | None) -> None:
+        """The CSV the Missing Bins check compares the pcs_die_file with (None: no program).  The check runs again at
+        once - with no pcs_die_file open the tab just says what it is waiting for."""
+        self.program_csv, self.program_seq = path, self.program_seq + 1
+        self.recheck_at = time.monotonic()
+        if self.doc is None:
+            self.miss_badge.set_visibility(False)
+            self.miss_text.set_text(
+                MISSING_HINT
+                if path is None
+                else f"Open a pcs_die_file to compare it with the bins of program '{self.program}'."
+            )
+
+    async def program_tick(self) -> None:
+        """Timer: count down the rest the Program box still needs, then record its value and look it up."""
+        if self.program_at is None:
+            return
+        left = self.program_at - time.monotonic()
+        if left > 0:
+            self.program_label.set_text(f"program: query in {math.ceil(left)} s ...")
+            return
+        self.program_at = None
+        await self.lookup_program()
+
+    async def lookup_program(self) -> None:
+        """Record the Program box's value and look its bins up in Oracle (in a thread: the login and the query take a few
+        seconds).  The answer goes to the status bar; the bins go to a CSV file in the temp folder."""
+        value = (self.program_input.value or "").strip()
+        self.program = value
+        log.info("program name recorded: %r", value)
+        self.set_progress(self.program_bar, True)
+        self.program_label.set_text(f"program '{value}': querying Oracle ...")
+        found, error = None, ""
+        try:
+            found = await run.io_bound(self.services.program_bins.query, value)
+        except ProgramBinsError as ex:
+            error = str(ex)
+        except Exception as ex:  # noqa: BLE001
+            log.exception("program %r: lookup crashed", value)
+            error = f"{type(ex).__name__}: {ex}"
+        if self.program != value:
+            return  # the box was emptied meanwhile: its reset stands
+        self.set_progress(self.program_bar, False)
+        if found is None:
+            log.warning("program %r: lookup failed: %s", value, error)
+            self.set_program_csv(None)  # (the bins of the program before are not those of this name)
+            text = f"program '{value}': {error}"
+            self.show_program(text)
+            notify(text, "negative")
+            return
+        n = len(found.bins)
+        log.info(
+            "program %r: %d bin(s) queried, saved to %s (%.1fs)",
+            value,
+            n,
+            found.path,
+            found.seconds,
+        )
+        self.set_program_csv(found.path)
+        text = program_status(value, n)
+        self.show_program(text)
+        if n:
+            notify(text, "positive")
+        else:
+            notify(f"program '{value}': no bins found - check the name.", "warning")
+        if found.renamed:  # the usual file was open in Excel or the like
+            notify(
+                f"The usual CSV is open in another program - saved as {found.path.name}",
+                "warning",
+            )
+
+    def show_program(self, text: str) -> None:
+        """Put the outcome of a lookup in the status bar - unless an edit made meanwhile is counting down there."""
+        if self.program_at is None:
+            self.program_label.set_text(text)
 
     # ------------------------------------------------------------------------------------- editing
     def toggle_edit(self) -> None:

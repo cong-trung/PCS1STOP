@@ -90,6 +90,23 @@ def test_the_app_never_opens_a_browser(tmp_path):
     assert (options["host"], options["port"]) == ("127.0.0.1", 8080)
 
 
+def test_the_program_lookup_is_wired_from_the_config(tmp_path):
+    import app as pcs_app
+    from config import Settings
+
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps({"oracle": {"portable_dir": "ora", "alias": "PG.ARIES"}, "database": {"path": "q.db"}}), encoding="utf-8"
+    )
+    services = pcs_app.build_services(Settings(path))
+    try:
+        lookup = services.program_bins
+        assert lookup.portable_dir == tmp_path / "ora" and lookup.alias == "PG.ARIES"
+        assert lookup.module_path == tmp_path / "ora" / "oracle_db.py"  # (not there: the app still starts, see main())
+    finally:
+        services.db.dispose()
+
+
 def notes_for(tmp_path, server: dict, token: str = "s3cret") -> list[tuple[int, str]]:
     import app as pcs_app
     from config import Settings

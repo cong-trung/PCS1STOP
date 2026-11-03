@@ -123,6 +123,26 @@ def test_the_app_compresses_nothing_unless_asked(tmp_path):
         Settings(write(tmp_path / "c.json", {"server": {"compression": "gzip"}}))
 
 
+def test_the_oracle_lookup_defaults_to_the_portable_folder_next_to_the_config(tmp_path):
+    settings = Settings(write(tmp_path / "a.json", {}))  # also a config.json written before the setting existed
+    assert settings.oracle_dir == tmp_path / "pcs_oracle_portable"
+    assert settings.oracle_alias == "VN.ARIES"
+    other = Settings(write(tmp_path / "b.json", {"oracle": {"portable_dir": "tools/oracle", "alias": "  PG.ARIES "}}))
+    assert other.oracle_dir == tmp_path / "tools" / "oracle" and other.oracle_alias == "PG.ARIES"
+    absolute = tmp_path / "elsewhere" / "oracle"
+    assert Settings(write(tmp_path / "c.json", {"oracle": {"portable_dir": str(absolute)}})).oracle_dir == absolute
+
+
+def test_the_services_default_and_the_config_default_are_the_same_folder():
+    """``Services.create()`` without arguments (the tests) and an app whose config.json has no ``oracle`` block must
+    look in the same place."""
+    from config import HERE
+    from services.program_bins import DEFAULT_ALIAS, DEFAULT_PORTABLE_DIR
+
+    assert DEFAULT_PORTABLE_DIR == HERE / Path(DEFAULTS["oracle"]["portable_dir"])
+    assert DEFAULT_ALIAS == DEFAULTS["oracle"]["alias"]
+
+
 def test_the_shipped_config_can_be_reached_by_the_workers():
     """Listening on this PC only is right behind a reverse proxy (IIS) - but then the config has to say where the proxy
     publishes the app, or the package for PC2 has no address to connect to."""
@@ -146,6 +166,10 @@ def test_the_shipped_config_can_be_reached_by_the_workers():
         ({"tasks": {"api_token": "tøken"}}, "tasks.api_token"),
         ({"tasks": {"api_token": "to\nken"}}, "tasks.api_token"),
         ({"ui": {"product": "XST"}}, "ui.product"),
+        ({"oracle": {"portable_dir": ""}}, "oracle.portable_dir"),
+        ({"oracle": {"portable_dir": 5}}, "oracle.portable_dir"),
+        ({"oracle": {"alias": "  "}}, "oracle.alias"),
+        ({"oracle": {"alias": None}}, "oracle.alias"),
         ({"server": {"port": 70000}}, "server.port"),
         ({"server": {"public_url": 5}}, "server.public_url"),
         ({"server": {"public_url": "pc1.example.com"}}, "server.public_url"),
