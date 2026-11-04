@@ -5,7 +5,7 @@
     uv run app.py --config my.json    # use another settings file
 
     /          pcs_die_file editor (upload a pcs_die_file XML -> parse -> edit -> save; the workflow paths are checked by a worker;
-               the Program box looks a test program's bins up in Oracle)
+               the TP Name box looks a test program's bins up in Oracle)
     /tasks     every task of the queue            /workers   the PC2 machines
     /api/...   what the workers call (see README.md)
 
@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> None:
         log.info("oracle module: %s (alias %s)", oracle_db, services.program_bins.alias)
     else:
         log.warning(
-            "oracle module not found (%s) - the Program box cannot look up bins; set oracle.portable_dir in config.json",
+            "oracle module not found (%s) - the TP Name box cannot look up bins; set oracle.portable_dir in config.json",
             oracle_db,
         )
     for level, message in reachability_notes(settings):

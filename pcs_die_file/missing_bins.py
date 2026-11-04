@@ -1,7 +1,8 @@
 """Bins of the queried test program that no XOFYBIN rule has - the "Missing Bins" step of the validation.
 
-The bins come from the CSV the Program box saves (``services.program_bins``): two columns, PROGRAM_NAME and BIN_NUMBER.
+The bins come from the CSV the TP Name box saves (``services.program_bins``): two columns, PROGRAM_NAME and BIN_NUMBER.
 It is scanned lazily with Polars (``scan_csv``): only those two columns are read, and only when the check collects them.
+The CSV of the bins the TP's units had (the unit level tab) has the same two columns and goes through the same check.
 
 A bin number stands for a range of the 8 digits of a DB bin, the way the bins of a rule do: 91030000 is itself (a DB),
 9103 is 91030000-91039999 (an FB), 91 is 91000000-91999999 (an IB).  A bin is *in a rule* when that range lies completely
@@ -49,7 +50,7 @@ def rule_ranges(rules: Iterable[tuple[str, str, str]]) -> list[Range]:
 def _why(pl, error: Exception) -> str:
     """One short line for a file that cannot be read (Polars' own messages hold the whole folder and a query plan)."""
     if isinstance(error, FileNotFoundError):
-        return "the file is gone - query the program again"
+        return "the file is gone - query the TP again"
     if isinstance(error, pl.exceptions.ColumnNotFoundError):
         return f"it needs the columns {PROGRAM_COLUMN} and {BIN_COLUMN}"
     if isinstance(error, pl.exceptions.NoDataError):

@@ -36,7 +36,7 @@ def covered(*rules: tuple[str, str]) -> list[str]:
     return [str(r) for r in rule_ranges(as_rules(*rules))]
 
 
-def test_the_columns_are_the_ones_the_program_box_writes():
+def test_the_columns_are_the_ones_the_tp_name_box_writes():
     assert (PROGRAM_COLUMN, BIN_COLUMN) == CSV_HEADER == ("PROGRAM_NAME", "BIN_NUMBER")
 
 
@@ -122,18 +122,22 @@ def test_the_columns_are_found_by_name_and_the_others_are_not_read(tmp_path):
     assert (found.checked, found.missing, found.programs) == (2, (), ("P",))
 
 
-def test_what_the_program_box_writes_is_what_the_check_reads(tmp_path):
-    """The CSV of ProgramBinsService (its own writer) read back by the check."""
+def test_what_the_tp_name_box_writes_is_what_the_check_reads(tmp_path):
+    """The CSV of ProgramBinsService (its own writer) read back by the check - both of its CSVs."""
     lookup = ProgramBinsService(tmp_path / "unused", out_dir=tmp_path)
     path = lookup._save("EMRA1X3B13F2633", (("EMRA1X3B13F2633", 9103), ("EMRA1X3B13F2633", 91030000), ("EMRA1X3B13F2633", 9104)))
     found = find_missing(as_rules(("A", "FB9103")), path)
     assert found.programs == ("EMRA1X3B13F2633",) and found.checked == 3 and found.missing == (9104,)
+    units = lookup._save("EMRA1X3B13F2633", (("EMRA1X3B13F2633", 91030000), ("EMRA1X3B13F2633", 91040001)), "unit_bins")
+    assert units != path  # a file of its own: the two lookups never overwrite each other
+    found = find_missing(as_rules(("A", "FB9103")), units)
+    assert found.programs == ("EMRA1X3B13F2633",) and found.checked == 2 and found.missing == (91040001,)
 
 
 @pytest.mark.parametrize(
     ("content", "why"),
     [
-        (None, "the file is gone - query the program again"),
+        (None, "the file is gone - query the TP again"),
         ("", "it is empty"),
         ("A,B\n1,2\n", "it needs the columns PROGRAM_NAME and BIN_NUMBER"),
     ],

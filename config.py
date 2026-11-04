@@ -14,7 +14,9 @@
 
 paths.alarm_map             AlarmIdMapping.xml used by pcs_die_file_checker (Rule / Action / BinOrToken lookups); the copy
                             that ships with the app lives in DpcConfig/V1.00 next to this file
-checker.bin_digit_exceptions bin numbers that may break the digit rule (FB 4 digits, IB 2, DB 8), e.g. {"FB": ["100"]}
+checker.bin_digit_exceptions bin numbers that may break the digit rule (FB 4 digits, IB 2, DB 8), e.g. {"FB": ["100"]}.  A
+                            kind that config.json lists replaces the default list of that kind (the DEFAULTS below only
+                            fill in what the file lacks): change the lists in config.json, not in DEFAULTS
 checker.skip_workflow_check true = do not require the Workflow files to exist on this machine
 server.host / server.port   where the web app listens (restart needed).  127.0.0.1 = this PC only: right when a reverse
                             proxy on this PC (IIS) publishes the app, nothing else can reach the port.  0.0.0.0 = the
@@ -37,7 +39,7 @@ server.compression          true = the app compresses what it sends (right for a
                             garbage and every big update (a pcs_die_file's tables) is lost
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
 oracle.portable_dir         the folder with oracle_db.py, the Oracle client and the TNS files (the pcs_oracle_portable set):
-                            what the Program box looks test programs up with (restart needed).  Missing = the app still
+                            what the TP Name box looks test programs up with (restart needed).  Missing = the app still
                             starts, and a lookup says what is missing
 oracle.alias                the TNS alias of the database the lookup logs in to (restart needed)
 database.path               the SQLite task store (restart needed); created on first start
@@ -57,6 +59,7 @@ tasks.api_token             when not empty (plain ASCII), every /api call except
 * Edits to paths.* / checker.* are picked up by the next check without restarting the app; everything else is read
   once at start-up.
 """
+
 from __future__ import annotations
 
 import copy
@@ -77,16 +80,24 @@ DEFAULT_CONFIG_PATH = HERE / "config.json"
 PRODUCTS = ("SST", "HST")
 
 DEFAULTS: dict[str, dict[str, Any]] = {
-    "paths": {"alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml"},  # the copy next to config.json, no C:\ needed
+    "paths": {
+        "alarm_map": "DpcConfig/V1.00/AlarmIdMapping.xml"
+    },  # the copy next to config.json, no C:\ needed
     "checker": {
         "skip_workflow_check": True,
         "bin_digit_exceptions": {
-            "IB": ["9"],
-            "FB": ["100", "500", "600", "700"],
-            "DB": ["1000000", "5000000", "6000000", "7000000"],
+            "IB": ["1", "5", "6", "7", "8", "9"],
+            "FB": ["100", "500", "600", "700", "800"],
+            "DB": ["1000000", "5000000", "6000000", "7000000", "8000000"],
         },
     },
-    "server": {"host": "127.0.0.1", "port": 8080, "public_url": "", "websocket": False, "compression": False},  # (see above)
+    "server": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "public_url": "",
+        "websocket": False,
+        "compression": False,
+    },  # (see above)
     "ui": {"product": PRODUCTS[0]},
     "oracle": {"portable_dir": "pcs_oracle_portable", "alias": "VN.ARIES"},
     "database": {"path": "data/queue.db"},
@@ -101,7 +112,13 @@ DEFAULTS: dict[str, dict[str, Any]] = {
 }
 
 #: tasks.* keys that are a length of time in seconds
-_SECONDS = ("monitor_interval_s", "worker_offline_after_s", "assigned_timeout_s", "running_timeout_s", "ui_refresh_s")
+_SECONDS = (
+    "monitor_interval_s",
+    "worker_offline_after_s",
+    "assigned_timeout_s",
+    "running_timeout_s",
+    "ui_refresh_s",
+)
 
 
 class ConfigError(Exception):
@@ -161,24 +178,38 @@ def _validate(data: dict, where: str) -> None:
     def expect(section: str, key: str, types: tuple, what: str) -> Any:
         v = data[section][key]
         if isinstance(v, bool) and bool not in types or not isinstance(v, types):
-            raise ConfigError(f'{where}: "{section}.{key}" must be {what}, got {json.dumps(v)}')
+            raise ConfigError(
+                f'{where}: "{section}.{key}" must be {what}, got {json.dumps(v)}'
+            )
         return v
 
     expect("paths", "alarm_map", (str,), "a path string")
     expect("checker", "skip_workflow_check", (bool,), "true or false")
-    exceptions = expect("checker", "bin_digit_exceptions", (dict,), "an object like {\"FB\": [\"100\"]}")
+    exceptions = expect(
+        "checker", "bin_digit_exceptions", (dict,), 'an object like {"FB": ["100"]}'
+    )
     for kind, values in exceptions.items():
-        if kind not in ("IB", "FB", "DB") or not isinstance(values, list) or not all(
-            isinstance(v, str) and v.isdigit() for v in values
+        if (
+            kind not in ("IB", "FB", "DB")
+            or not isinstance(values, list)
+            or not all(isinstance(v, str) and v.isdigit() for v in values)
         ):
             raise ConfigError(
-                f'{where}: "checker.bin_digit_exceptions" must map IB / FB / DB to lists of digit strings, ' f"got {json.dumps(exceptions)}"
+                f'{where}: "checker.bin_digit_exceptions" must map IB / FB / DB to lists of digit strings, '
+                f"got {json.dumps(exceptions)}"
             )
     expect("server", "host", (str,), "a host name / address string")
     port = expect("server", "port", (int,), "a whole number between 1 and 65535")
     if not 1 <= port <= 65535:
-        raise ConfigError(f'{where}: "server.port" must be between 1 and 65535, got {port}')
-    public_url = expect("server", "public_url", (str,), "a web address like http://pc1.example.com, or empty").strip()
+        raise ConfigError(
+            f'{where}: "server.port" must be between 1 and 65535, got {port}'
+        )
+    public_url = expect(
+        "server",
+        "public_url",
+        (str,),
+        "a web address like http://pc1.example.com, or empty",
+    ).strip()
     if public_url and not is_site_address(public_url):
         raise ConfigError(
             f'{where}: "server.public_url" must look like http://host or http://host:port (no folder after it), '
@@ -188,7 +219,9 @@ def _validate(data: dict, where: str) -> None:
     expect("server", "compression", (bool,), "true or false")
     product = expect("ui", "product", (str,), "SST or HST")
     if product.strip().upper() not in PRODUCTS:
-        raise ConfigError(f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}')
+        raise ConfigError(
+            f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}'
+        )
     if not expect("oracle", "portable_dir", (str,), "a path string").strip():
         raise ConfigError(f'{where}: "oracle.portable_dir" must not be empty')
     if not expect("oracle", "alias", (str,), "a TNS alias like VN.ARIES").strip():
@@ -196,12 +229,18 @@ def _validate(data: dict, where: str) -> None:
     if not expect("database", "path", (str,), "a path string").strip():
         raise ConfigError(f'{where}: "database.path" must not be empty')
     for key in _SECONDS:
-        seconds = expect("tasks", key, (int, float), "a number of seconds greater than 0")
+        seconds = expect(
+            "tasks", key, (int, float), "a number of seconds greater than 0"
+        )
         if not 0 < seconds < 10**9:  # (also rejects NaN)
-            raise ConfigError(f'{where}: "tasks.{key}" must be a number of seconds greater than 0, got {seconds}')
+            raise ConfigError(
+                f'{where}: "tasks.{key}" must be a number of seconds greater than 0, got {seconds}'
+            )
     token = expect("tasks", "api_token", (str,), "a string (empty = no token)").strip()
     if token and not (token.isascii() and token.isprintable()):
-        raise ConfigError(f'{where}: "tasks.api_token" may only contain plain ASCII characters (it is sent in an HTTP header)')
+        raise ConfigError(
+            f'{where}: "tasks.api_token" may only contain plain ASCII characters (it is sent in an HTTP header)'
+        )
 
 
 class Settings:
@@ -222,8 +261,14 @@ class Settings:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8-sig"))
         except json.JSONDecodeError as e:
-            hint = " (in JSON write backslashes twice, or use forward slashes)" if "escape" in e.msg.lower() else ""
-            raise ConfigError(f"{self.path.name}: line {e.lineno}, column {e.colno}: {e.msg}{hint}") from e
+            hint = (
+                " (in JSON write backslashes twice, or use forward slashes)"
+                if "escape" in e.msg.lower()
+                else ""
+            )
+            raise ConfigError(
+                f"{self.path.name}: line {e.lineno}, column {e.colno}: {e.msg}{hint}"
+            ) from e
         except OSError as e:
             raise ConfigError(f"{self.path}: {e.strerror or e}") from e
         if not isinstance(raw, dict):
@@ -252,7 +297,9 @@ class Settings:
         """Write ``self.data``: to a temp file next to the real one first, then renamed over it."""
         text = json.dumps(self.data, indent=2, ensure_ascii=False) + "\n"
         with _WRITE_LOCK:
-            fd, name = tempfile.mkstemp(dir=self.path.parent, prefix=self.path.name + ".", suffix=".tmp")
+            fd, name = tempfile.mkstemp(
+                dir=self.path.parent, prefix=self.path.name + ".", suffix=".tmp"
+            )
             tmp = Path(name)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -263,8 +310,14 @@ class Settings:
                 raise
             self._stamp = self.path.stat().st_mtime_ns
 
-    def update(self, *, alarm_map: str | None = None, skip_workflow_check: bool | None = None,
-               product: str | None = None, api_token: str | None = None) -> None:
+    def update(
+        self,
+        *,
+        alarm_map: str | None = None,
+        skip_workflow_check: bool | None = None,
+        product: str | None = None,
+        api_token: str | None = None,
+    ) -> None:
         """Change the given values and write the file.
 
         The file is read again first, so whatever somebody else wrote since this object last looked (a hand edit, the
@@ -273,7 +326,9 @@ class Settings:
         if api_token is not None:
             token = api_token.strip()
             if token and not (token.isascii() and token.isprintable()):
-                raise ConfigError("the API token may only contain plain ASCII characters (it is sent in an HTTP header)")
+                raise ConfigError(
+                    "the API token may only contain plain ASCII characters (it is sent in an HTTP header)"
+                )
         with _WRITE_LOCK:
             if self.path.exists():
                 self.load()
@@ -345,7 +400,7 @@ class Settings:
 
     @property
     def oracle_alias(self) -> str:
-        """The TNS alias the Program lookup logs in to."""
+        """The TNS alias the TP lookups log in to."""
         return self.data["oracle"]["alias"].strip()
 
     @property

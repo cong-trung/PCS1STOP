@@ -6,19 +6,26 @@
     "skip_workflow_check": true,
     "bin_digit_exceptions": {
       "IB": [
+        "1",
+        "5",
+        "6",
+        "7",
+        "8",
         "9"
       ],
       "FB": [
         "100",
         "500",
         "600",
-        "700"
+        "700",
+        "800"
       ],
       "DB": [
         "1000000",
         "5000000",
         "6000000",
-        "7000000"
+        "7000000",
+        "8000000"
       ]
     }
   },
@@ -31,6 +38,10 @@
   },
   "ui": {
     "product": "HST"
+  },
+  "oracle": {
+    "portable_dir": "pcs_oracle_portable",
+    "alias": "VN.ARIES"
   },
   "database": {
     "path": "data/queue.db"

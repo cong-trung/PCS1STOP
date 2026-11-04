@@ -1,0 +1,1759 @@
+<!-- Comment: -->
+<!--
+Rev1: W42'23 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Initial revision from TD
+
+Rev2: W45'23 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Create rule for DB74060148,DB74060149,DB74060150,DB74060151,DB74060152,DB74060153,DB74060229,DB74060235,DB74060236 with rule 4/5
+- Exclude new DB from FB7406
+- Change 8805 to 2/3
+
+Rev3: W02'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Initial revision for AGUILA
+
+Rev4: W04'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Add in new bin for TP04A
+- Add in low yield bin 1583 (15/20) and 1582 (30/100)
+- Add in cleaning coupon and vctim replace rule and workflow
+
+Rev5: W05'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Relax DB91000001 and DB91000002 from 1/1 to 2/3 as TP05D already reduce NO_BIN issue
+- Update new work flow in order to capture MTTR and action
+
+Rev6: W05'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Add FB9240 to cover new 9240 DBs from TP06A
+- Set DVM bin 92400009 (VP3.3) as 1/1
+
+Rev7: W08'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Relax 91000000,91000001,91000002,91000004,91000109,91000115 from 1/1 to 2/3 due to can be self-recovered
+- Shorten RuleName from XofY_Bin70000000DB to 70000000 for all bins
+
+Rev8: W09'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Having VCTIM triggers even after resetting VCTIM counter. Deleted line77 "Enforce VCTIM token" from previous version
+
+Rev9: W10'24 - Tcherbi-narteh, Alfred; Dam, Kien Thong
+- Add rule for bin double stack (new TP2409A) 92400010
+- Loosen 91000005 from 1/1 to 2/3 to reduce CDR
+
+Rev10: W34.2'24 - Dam, Kien Thong
+- Add rule for 92400011, 92400013, 94200014, 94200016 1/1 as BKM burn
+- Add 92100030 2/3 for wrong DC3 version
+
+Rev11: W34.4'24 - Dam, Kien Thong
+- Change workflow for Follow RFC refer LNL to have MTTR on data
+- Add 9850 bin 1/1
+
+Rev12: W34.4'24 - Dam, Kien Thong
+- Remove most DB, add FB for wider coverage follow TP 2434A bin list
+
+Rev13: W35.2'24 - Dam, Kien Thong
+- Add rule for 90000112, 92100034,90000123,90000109 rule 2/3
+
+Rev14: W36.0'24 - Dam, Kien Thong
+- Relax 92400014 from 1/1 to 2/3
+- Relax 9240 from 2/3 to 4/5
+
+Rev15: W37.1'24 - Dam, Kien Thong
+- Relax 92400014 from 2/3 to 4/5, exclude 92400014 from 9240
+- Add in FBIN rule 7910 WOS HANG (new in TP2436B) rule 4/5
+
+Rev16: W43.1'24 - Dam, Kien Thong
+- Change from manual down to auto down CMMS WF
+- Exclude bin [DB77320551],[DB79100001] from LLY and SLY which are issue bins to avoid high CDR
+- Tighten FB7505 from 6/8 to 4/5, DB7505XXXX from 4/5 to 2/3
+- Tighten FB7100 from 4/5 to 2/3
+- Update flow of 9850 from PC->HS MB->Escalate to PC->HS AP->HS MB->Escalate
+
+Rev17: W43.3'24 - Dam, Kien Thong
+- Change short term low yield 1583 from 15/20 to 8/10 for quicker PCS down
+- Tighten long term low yield 1582 from 30/100 to 20/100 to reduce PHI impact
+
+Rev18: W44.1'24 - Dam, Kien Thong
+- Create rule for issue bins 77320551, 77320241 and exclude them from 7732 to counter QS material Q6Sx
+- Tighten thermal bin 9220 to 2/3
+- 7110 Flow change from MB->MB->Escalate to MB->AP->Escalate as observe some cells fail 7110 due to ACP
+- Create rule 92409999 for 92400004-92400005 COLD REBOOT and exclude them from 9240 generic as COLD REBOOT is SPM TN.
+
+Rev19: W45.2'24 - Dam, Kien Thong
+- Update flow of 90000112, 9220 to AP->MB
+- Update flow of 90000123 to MB->AP
+- Add in [DB77320241] in 1582/1583 as forgot to add in rev18
+- Relax 7100 from 2/3 to 4/5 as known issue from IWFI
+
+Rev20: W45.2'24 - Dam, Kien Thong
+- Correct typo double stack flow
+
+Rev21: W46.2'24 - Dam, Kien Thong
+- Relax 7242 from 4/5 to 8/10 as massive fail issue CA on lot
+- Exclude 7242 from low yield bins
+- Change flow of 7242 to PC->MB->Escalate
+
+Rev22: W46.3'24 - Dam, Kien Thong
+- Add step Replace_AP_MB for rules: 7100, 9220, 90000112, 1582, 1583
+- Change flow of 7100 from MBx2->Escalate to MB->AP->MB+AP->Escalate
+
+Rev23: W46.3'24 - Dam, Kien Thong
+- Add step Replace_AP_MB for rules: 9
+
+Rev24: W46.3'24 - Dam, Kien Thong
+- Add Replace_AP_MB for 92400011
+- Add new bin 92100025 and exclude it from 9210
+- Change low effective + relate both AP and MB logic to TriggerIncrementMethod="Max" which includes (9220, 92400011, 158x, 90000112, 7100)
+
+Rev24: W46.3'24 - Dam, Kien Thong
+- Add Replace_AP_MB for 92400011
+- Add new bin 92100025 and exclude it from 9210
+- Change low effective + relate both AP and MB logic to TriggerIncrementMethod="Max" which includes (9220, 92400011, 158x, 90000112, 7100)
+- Add 7191,7190,7290,7291,7292,7293,7294,7295 (DRAGON bins failed in re-screen flow) with rule 8/10 and exclude from LY
+
+Rev25: W49.4'24 - Dam, Kien Thong
+- Create groups for 4 pipes
+- Change VCTIM litmit from 3000 to 6500
+
+Rev26: W08.5'25 - Dam, Kien Thong
+- Add 92400022 (DVM over) as bin 1/1
+- 92100001 and 92100002 related to ACP, add new rule
+- 90000109 add step Power Cycle 1st to minimize collateral hotswap
+-->
+
+<ComponentRecipe checksum="6283e69584e3ef19d2e34534a9f9b537">
+
+	<BeginChecksum />
+	<Identity type="iLLIAD" datagroup="SST_ARLSBGA" name="Product_Die" id="311E9D4C-3BD5-495F-BF07-6DECC85A84BB" version="1270.ENG.001" asof="2013-08-07T14:00:38" />
+	<Template name="Product_Die_template" id="B343DF04-EDA3-440F-B9ED-2B520F586F68" />
+	
+	<SharedConfigurations>
+		<ConfigGroup Key="SST_PowerCycle">
+			<Workflow Path="M:\pcs\prod\workflows\SST_PowerCycle.xml"/>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_ReplaceMB">
+			<Workflow Path="M:\pcs\prod\workflows\SST_ReplaceMB.xml"/>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_ReplaceAP">
+			<Workflow Path="M:\pcs\prod\workflows\SST_ReplaceAP.xml"/>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_DoubleStack">
+			<Workflow Path="M:\pcs\prod\workflows\SST_DoubleStack.xml"/>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_Escalate">
+			<Workflow Path="M:\pcs\prod\workflows\SST_Escalate.xml"/>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_FollowRFC">
+			<Workflow Path="M:\pcs\prod\arl\ARL_HX_SST\workflows\SST_FollowRFC.xml"/>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_CleanSocket">
+			<Workflow Path="M:\pcs\prod\arl\ARL_HX_SST\workflows\SST_PCSCleanSocket_CheckBLT.xml"></Workflow>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_ReplaceVCTIM">
+			<Workflow Path="M:\pcs\prod\arl\ARL_HX_SST\workflows\SST_PCSReplaceVCTIM_CheckBLT.xml"></Workflow>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_PowerCycle_CheckBLT">
+			<Workflow Path="M:\pcs\prod\arl\ARL_HX_SST\workflows\SST_PowerCycle_CheckBLT.xml"></Workflow>
+		</ConfigGroup>
+		<ConfigGroup Key="SST_ReplaceAP_MB">
+			<Workflow Path="M:\pcs\prod\workflows\SST_ReplaceAP_MB.xml"></Workflow>
+		</ConfigGroup>
+		
+	</SharedConfigurations>
+	
+	<RuleGroup GroupName="Parametric">
+		<!-- VCTIM replace --><PARAMETRIC ParameterName="VCTIMCount" UpperLimit="6500" RuleName="1502" CollateralType="Cell" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" TriggerType="Scheduled" > 
+			<Alarm Severity="ParameterControlWarning_3" Rule="Param" BinOrToken="VCTIMCount" Action="ConfigKey" ConfigKey="SST_ReplaceVCTIM" />
+		</PARAMETRIC>
+		
+		<!-- Cleaning socket --><PARAMETRIC ParameterName="CleaningCycleCount" UpperLimit="3000" RuleName="1504" CollateralType="Cell" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" TriggerType="Scheduled" > 
+			<Alarm Severity="ParameterControlWarning_3" Rule="Param" BinOrToken="CleaningCycleCount" Action="ConfigKey" ConfigKey="SST_CleanSocket" />
+		</PARAMETRIC>
+	</RuleGroup>
+	
+	<RuleGroup GroupName="XofYBinGroup">
+		<!--Long term low yield--><XOFYBIN Bins="FB2000-9999,[FB2900],[FB700],[DB77320551],[DB77320241],[DB79100001],[FB7242],[FB7190-7192],[FB7290-7295]" X="20" Y="100" RuleName="DB1582" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1582" Action="Abc" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1582" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1582" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1582" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--Short term low yield--><XOFYBIN Bins="FB1000-9999,[FB2900],[FB700],[DB77320551],[DB77320241],[DB79100001],[FB7242],[FB7190-7192],[FB7290-7295]" X="8" Y="10" RuleName="1583" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1583" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1583" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1583" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="1583" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_FAIL--><XOFYBIN Bins="FB7000" X="4" Y="5" RuleName="6900" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_BOOT_FAIL--><XOFYBIN Bins="FB7100" X="4" Y="5" RuleName="7100" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7100" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7100" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7100" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7100" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_SOC_ESEPP_FAILED--><XOFYBIN Bins="FB7101" X="4" Y="5" RuleName="7101" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7101" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7101" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7101" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_SPACE_PM_FAILED--><XOFYBIN Bins="FB7102" X="4" Y="5" RuleName="7102" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7102" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7102" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7102" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_GNA_FAILED--><XOFYBIN Bins="FB7104" X="4" Y="5" RuleName="7104" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7104" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7104" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7104" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_SPACE_FAILED--><XOFYBIN Bins="FB7105" X="4" Y="5" RuleName="7105" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7105" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7105" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7105" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_GSE_FAILED--><XOFYBIN Bins="FB7106" X="4" Y="5" RuleName="7106" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7106" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7106" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7106" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_SPACE_PM_FAILED--><XOFYBIN Bins="FB7108" X="4" Y="5" RuleName="7108" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7108" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7108" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7108" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLSLGA8161_ORYX_SOC_pciemodel_FAILED--><XOFYBIN Bins="FB7109" X="4" Y="5" RuleName="7109" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7109" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7109" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7109" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_DRAGON_H_FAILED--><XOFYBIN Bins="FB7110" X="4" Y="5" RuleName="7110" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7110" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7110" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7110" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_DRAGON_R_FAILED--><XOFYBIN Bins="FB7111" X="4" Y="5" RuleName="7111" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7111" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7111" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7111" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_GRITS_3D_FAILED--><XOFYBIN Bins="FB7140" X="4" Y="5" RuleName="7140" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7140" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7140" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7140" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_GRITS_DISPLAY_FAILED--><XOFYBIN Bins="FB7141" X="4" Y="5" RuleName="7141" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7141" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7141" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7141" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_71_ARLS_GRITS_MEDIA_FAILED--><XOFYBIN Bins="FB7142" X="4" Y="5" RuleName="7142" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7142" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7142" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7142" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--TCSS_DMA--><XOFYBIN Bins="FB7170" X="4" Y="5" RuleName="7170" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7170" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7170" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7170" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EDOK_FAIL--><XOFYBIN Bins="FB7200" X="4" Y="5" RuleName="7200" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7200" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7200" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7200" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GRTIS_3D--><XOFYBIN Bins="FB7240" X="4" Y="5" RuleName="7240" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7240" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7240" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7240" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GRTIS_DISPLAY--><XOFYBIN Bins="FB7241" X="4" Y="5" RuleName="7241" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7241" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7241" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7241" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GRTIS_MEDIA--><XOFYBIN Bins="FB7242" X="8" Y="10" RuleName="7242" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7242" Action="ConfigKey" ConfigKey="SST_PowerCycle_CheckBLT" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7242" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7242" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_BOOT_FAIL--><XOFYBIN Bins="FB7300" X="4" Y="5" RuleName="7300" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7300" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7300" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7300" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EFI_BOOT_FAIL--><XOFYBIN Bins="FB7400" X="4" Y="5" RuleName="7400" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7400" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7400" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7400" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_BOOT_FAIL--><XOFYBIN Bins="FB7500" X="4" Y="5" RuleName="7500" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7500" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7500" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7500" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_IA_FAILED--><XOFYBIN Bins="FB7501" X="4" Y="5" RuleName="7501" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7501" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7501" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7501" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GENERAL_WOS_IOE_1--><XOFYBIN Bins="FB7502" X="6" Y="8" RuleName="7502" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7502" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7502" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7502" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_FAILED--><XOFYBIN Bins="DB75020010" X="4" Y="5" RuleName="75020010" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020010" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_TIMEOUT--><XOFYBIN Bins="DB75020011" X="4" Y="5" RuleName="75020011" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020011" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_HANG--><XOFYBIN Bins="DB75020012" X="4" Y="5" RuleName="75020012" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020012" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_SANITY--><XOFYBIN Bins="DB75020013" X="4" Y="5" RuleName="75020013" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020013" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_UNDEFINED--><XOFYBIN Bins="DB75020019" X="4" Y="5" RuleName="75020019" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020019" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP1_FAILED--><XOFYBIN Bins="DB75020020" X="4" Y="5" RuleName="75020020" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020020" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP1_TIMEOUT--><XOFYBIN Bins="DB75020021" X="4" Y="5" RuleName="75020021" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020021" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP1_HANG--><XOFYBIN Bins="DB75020022" X="4" Y="5" RuleName="75020022" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020022" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP1_SANITY--><XOFYBIN Bins="DB75020023" X="4" Y="5" RuleName="75020023" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020023" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP1_UNDEFINED--><XOFYBIN Bins="DB75020029" X="4" Y="5" RuleName="75020029" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020029" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP0_FAILED--><XOFYBIN Bins="DB75020030" X="4" Y="5" RuleName="75020030" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020030" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP0_TIMEOUT--><XOFYBIN Bins="DB75020031" X="4" Y="5" RuleName="75020031" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020031" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020031" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020031" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP0_HANG--><XOFYBIN Bins="DB75020032" X="4" Y="5" RuleName="75020032" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020032" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020032" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020032" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP0_SANITY--><XOFYBIN Bins="DB75020033" X="4" Y="5" RuleName="75020033" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020033" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020033" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020033" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_TCSS_USB_CH1_TCP0_UNDEFINED--><XOFYBIN Bins="DB75020039" X="4" Y="5" RuleName="75020039" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020039" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020039" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020039" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPF_G5_FAILED--><XOFYBIN Bins="DB75020040" X="4" Y="5" RuleName="75020040" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020040" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020040" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020040" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPF_G5_TIMEOUT--><XOFYBIN Bins="DB75020041" X="4" Y="5" RuleName="75020041" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020041" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020041" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020041" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPF_G5_HANG--><XOFYBIN Bins="DB75020042" X="4" Y="5" RuleName="75020042" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020042" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020042" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020042" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPF_G5_SANITY--><XOFYBIN Bins="DB75020043" X="4" Y="5" RuleName="75020043" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020043" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020043" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020043" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPF_G5_UNDEFINED--><XOFYBIN Bins="DB75020049" X="4" Y="5" RuleName="75020049" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020049" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020049" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020049" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_WA_FAILED--><XOFYBIN Bins="DB75020050" X="4" Y="5" RuleName="75020050" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020050" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020050" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020050" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_WA_TIMEOUT--><XOFYBIN Bins="DB75020051" X="4" Y="5" RuleName="75020051" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020051" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020051" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020051" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_WA_HANG--><XOFYBIN Bins="DB75020052" X="4" Y="5" RuleName="75020052" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020052" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020052" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020052" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_WA_SANITY--><XOFYBIN Bins="DB75020053" X="4" Y="5" RuleName="75020053" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020053" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020053" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020053" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_1_IOE_PCIE_PXPD_G4_WA_UNDEFINED--><XOFYBIN Bins="DB75020059" X="4" Y="5" RuleName="75020059" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020059" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020059" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75020059" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WOS_OCELOT--><XOFYBIN Bins="FB7503" X="6" Y="8" RuleName="7503" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7503" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7503" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7503" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_DP1_4_UnderRun_FAILED--><XOFYBIN Bins="DB75030010" X="4" Y="5" RuleName="75030010" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030010" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_DP1_4_UnderRun_TIMEOUT--><XOFYBIN Bins="DB75030011" X="4" Y="5" RuleName="75030011" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030011" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_DP1_4_UnderRun_HANG--><XOFYBIN Bins="DB75030012" X="4" Y="5" RuleName="75030012" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030012" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_DP1_4_UnderRun_SANITY--><XOFYBIN Bins="DB75030013" X="4" Y="5" RuleName="75030013" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030013" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_DP1_4_UnderRun_UNDEFINED--><XOFYBIN Bins="DB75030019" X="4" Y="5" RuleName="75030019" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030019" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_PCIE_PXPF_G5_FAILED--><XOFYBIN Bins="DB75030020" X="4" Y="5" RuleName="75030020" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030020" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_PCIE_PXPF_G5_TIMEOUT--><XOFYBIN Bins="DB75030021" X="4" Y="5" RuleName="75030021" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030021" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_PCIE_PXPF_G5_HANG--><XOFYBIN Bins="DB75030022" X="4" Y="5" RuleName="75030022" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030022" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_PCIE_PXPF_G5_SANITY--><XOFYBIN Bins="DB75030023" X="4" Y="5" RuleName="75030023" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030023" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_PCIE_PXPF_G5_UNDEFINED--><XOFYBIN Bins="DB75030029" X="4" Y="5" RuleName="75030029" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030029" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP0_FAILED--><XOFYBIN Bins="DB75030030" X="4" Y="5" RuleName="75030030" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030030" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP0_TIMEOUT--><XOFYBIN Bins="DB75030031" X="4" Y="5" RuleName="75030031" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030031" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030031" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030031" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP0_HANG--><XOFYBIN Bins="DB75030032" X="4" Y="5" RuleName="75030032" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030032" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030032" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030032" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP0_SANITY--><XOFYBIN Bins="DB75030033" X="4" Y="5" RuleName="75030033" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030033" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030033" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030033" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP0_UNDEFINED--><XOFYBIN Bins="DB75030039" X="4" Y="5" RuleName="75030039" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030039" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030039" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030039" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP1_FAILED--><XOFYBIN Bins="DB75030040" X="4" Y="5" RuleName="75030040" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030040" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030040" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030040" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP1_TIMEOUT--><XOFYBIN Bins="DB75030041" X="4" Y="5" RuleName="75030041" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030041" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030041" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030041" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP1_HANG--><XOFYBIN Bins="DB75030042" X="4" Y="5" RuleName="75030042" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030042" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030042" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030042" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP1_SANITY--><XOFYBIN Bins="DB75030043" X="4" Y="5" RuleName="75030043" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030043" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030043" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030043" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_2_IOE_TCSS_USB_CH1_TCP1_UNDEFINED--><XOFYBIN Bins="DB75030049" X="4" Y="5" RuleName="75030049" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030049" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030049" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75030049" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WOS_OCELOT--><XOFYBIN Bins="FB7504" X="6" Y="8" RuleName="7504" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7504" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7504" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7504" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP1_FAILED--><XOFYBIN Bins="DB75040010" X="4" Y="5" RuleName="75040010" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040010" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP1_TIMEOUT--><XOFYBIN Bins="DB75040011" X="4" Y="5" RuleName="75040011" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040011" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP1_HANG--><XOFYBIN Bins="DB75040012" X="4" Y="5" RuleName="75040012" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040012" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP1_SANITY--><XOFYBIN Bins="DB75040013" X="4" Y="5" RuleName="75040013" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040013" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP1_UNDEFINED--><XOFYBIN Bins="DB75040019" X="4" Y="5" RuleName="75040019" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040019" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP0_FAILED--><XOFYBIN Bins="DB75040020" X="4" Y="5" RuleName="75040020" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040020" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP0_TIMEOUT--><XOFYBIN Bins="DB75040021" X="4" Y="5" RuleName="75040021" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040021" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP0_HANG--><XOFYBIN Bins="DB75040022" X="4" Y="5" RuleName="75040022" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040022" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP0_SANITY--><XOFYBIN Bins="DB75040023" X="4" Y="5" RuleName="75040023" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040023" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP0_UNDEFINED--><XOFYBIN Bins="DB75040029" X="4" Y="5" RuleName="75040029" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040029" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP1_FAILED--><XOFYBIN Bins="DB75040030" X="4" Y="5" RuleName="75040030" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040030" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP1_TIMEOUT--><XOFYBIN Bins="DB75040031" X="4" Y="5" RuleName="75040031" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040031" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040031" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040031" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP1_HANG--><XOFYBIN Bins="DB75040032" X="4" Y="5" RuleName="75040032" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040032" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040032" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040032" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP1_SANITY--><XOFYBIN Bins="DB75040033" X="4" Y="5" RuleName="75040033" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040033" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040033" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040033" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_PCIE_CH0_TCP1_UNDEFINED--><XOFYBIN Bins="DB75040039" X="4" Y="5" RuleName="75040039" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040039" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040039" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040039" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_FAILED--><XOFYBIN Bins="DB75040040" X="4" Y="5" RuleName="75040040" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040040" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040040" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040040" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_TIMEOUT--><XOFYBIN Bins="DB75040041" X="4" Y="5" RuleName="75040041" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040041" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040041" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040041" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_HANG--><XOFYBIN Bins="DB75040042" X="4" Y="5" RuleName="75040042" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040042" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040042" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040042" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_SANITY--><XOFYBIN Bins="DB75040043" X="4" Y="5" RuleName="75040043" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040043" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040043" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040043" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_UNDEFINED--><XOFYBIN Bins="DB75040049" X="4" Y="5" RuleName="75040049" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040049" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040049" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040049" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_DP1_4_UnderRun_FAILED--><XOFYBIN Bins="DB75040050" X="4" Y="5" RuleName="75040050" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040050" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040050" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040050" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_DP1_4_UnderRun_TIMEOUT--><XOFYBIN Bins="DB75040051" X="4" Y="5" RuleName="75040051" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040051" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040051" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040051" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_DP1_4_UnderRun_HANG--><XOFYBIN Bins="DB75040052" X="4" Y="5" RuleName="75040052" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040052" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040052" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040052" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_DP1_4_UnderRun_SANITY--><XOFYBIN Bins="DB75040053" X="4" Y="5" RuleName="75040053" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040053" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040053" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040053" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_DP1_4_UnderRun_UNDEFINED--><XOFYBIN Bins="DB75040059" X="4" Y="5" RuleName="75040059" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040059" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040059" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040059" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP0_FAILED--><XOFYBIN Bins="DB75040060" X="4" Y="5" RuleName="75040060" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040060" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040060" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040060" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP0_TIMEOUT--><XOFYBIN Bins="DB75040061" X="4" Y="5" RuleName="75040061" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040061" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040061" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040061" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP0_HANG--><XOFYBIN Bins="DB75040062" X="4" Y="5" RuleName="75040062" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040062" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040062" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040062" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP0_SANITY--><XOFYBIN Bins="DB75040063" X="4" Y="5" RuleName="75040063" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040063" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040063" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040063" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP0_UNDEFINED--><XOFYBIN Bins="DB75040069" X="4" Y="5" RuleName="75040069" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040069" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040069" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040069" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP1_FAILED--><XOFYBIN Bins="DB75040070" X="4" Y="5" RuleName="75040070" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040070" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040070" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040070" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP1_TIMEOUT--><XOFYBIN Bins="DB75040071" X="4" Y="5" RuleName="75040071" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040071" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040071" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040071" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP1_HANG--><XOFYBIN Bins="DB75040072" X="4" Y="5" RuleName="75040072" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040072" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040072" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040072" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP1_SANITY--><XOFYBIN Bins="DB75040073" X="4" Y="5" RuleName="75040073" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040073" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040073" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040073" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_DP1_4_TCP1_UNDEFINED--><XOFYBIN Bins="DB75040079" X="4" Y="5" RuleName="75040079" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040079" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040079" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75040079" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--DP2.1_CRC--><XOFYBIN Bins="FB7505" X="4" Y="5" RuleName="7505" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7505" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7505" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7505" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_WOS_DP2_1_IOE_TCSS_DP2P1_DisplaySwitch_FAILED--><XOFYBIN Bins="DB75050150" X="2" Y="3" RuleName="75050150" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050150" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050150" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050150" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_WOS_DP2_1_IOE_TCSS_DP2P1_DisplaySwitch_TIMEOUT--><XOFYBIN Bins="DB75050151" X="2" Y="3" RuleName="75050151" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050151" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050151" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050151" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_WOS_DP2_1_IOE_TCSS_DP2P1_DisplaySwitch_HANG--><XOFYBIN Bins="DB75050152" X="2" Y="3" RuleName="75050152" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050152" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050152" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050152" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_WOS_DP2_1_IOE_TCSS_DP2P1_DisplaySwitch_SANITY--><XOFYBIN Bins="DB75050153" X="2" Y="3" RuleName="75050153" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050153" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050153" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050153" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_WOS_DP2_1_IOE_TCSS_DP2P1_DisplaySwitch_UNDEFINED--><XOFYBIN Bins="DB75050159" X="2" Y="3" RuleName="75050159" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050159" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050159" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050159" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WOS_OCELOT--><XOFYBIN Bins="FB7540" X="4" Y="5" RuleName="7540" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7540" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7540" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7540" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_FAILED--><XOFYBIN Bins="DB75400010" X="4" Y="5" RuleName="75400010" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400010" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_TIMEOUT--><XOFYBIN Bins="DB75400011" X="4" Y="5" RuleName="75400011" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400011" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_HANG--><XOFYBIN Bins="DB75400012" X="4" Y="5" RuleName="75400012" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400012" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400012" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_SANITY--><XOFYBIN Bins="DB75400013" X="4" Y="5" RuleName="75400013" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400013" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_3_IOE_TCSS_USB_CH0_TCP0_UNDEFINED--><XOFYBIN Bins="DB75400019" X="4" Y="5" RuleName="75400019" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400019" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400019" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_4_IOE_TCSS_USB_CH0_TCP0_FAILED--><XOFYBIN Bins="DB75400020" X="4" Y="5" RuleName="75400020" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400020" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_4_IOE_TCSS_USB_CH0_TCP0_TIMEOUT--><XOFYBIN Bins="DB75400021" X="4" Y="5" RuleName="75400021" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400021" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400021" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_4_IOE_TCSS_USB_CH0_TCP0_HANG--><XOFYBIN Bins="DB75400022" X="4" Y="5" RuleName="75400022" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400022" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_4_IOE_TCSS_USB_CH0_TCP0_SANITY--><XOFYBIN Bins="DB75400023" X="4" Y="5" RuleName="75400023" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400023" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400023" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_OCELOT_IOE_4_IOE_TCSS_USB_CH0_TCP0_UNDEFINED--><XOFYBIN Bins="DB75400029" X="4" Y="5" RuleName="75400029" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400029" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75400029" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_75_ARLS_WOS_GT_FAILED--><XOFYBIN Bins="FB7541" X="4" Y="5" RuleName="7541" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7541" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7541" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7541" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WOS_GT--><XOFYBIN Bins="FB7542" X="4" Y="5" RuleName="7542" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7542" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7542" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7542" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--DISKCLEANUP--><XOFYBIN Bins="FB7570" X="4" Y="5" RuleName="7570" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7570" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7570" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7570" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_76_BOOT_FAILURE_FAILED--><XOFYBIN Bins="DB76000000" X="4" Y="5" RuleName="76000000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_76_ARLS_VPU_FAILED--><XOFYBIN Bins="FB7600" X="6" Y="8" RuleName="7600" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7600" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7600" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7600" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_76_BOOT_FAILURE_TIMEOUT--><XOFYBIN Bins="DB76000001" X="4" Y="5" RuleName="76000001" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000001" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_76_BOOT_FAILURE_HANG--><XOFYBIN Bins="DB76000002" X="4" Y="5" RuleName="76000002" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000002" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_76_BOOT_FAILURE_UNDEFINED--><XOFYBIN Bins="DB76000009" X="4" Y="5" RuleName="76000009" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="76000009" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_77_BOOT_FAILURE_FAILED--><XOFYBIN Bins="DB77000000" X="4" Y="5" RuleName="77000000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_BOOT_FAIL--><XOFYBIN Bins="FB7700" X="6" Y="8" RuleName="7700" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7700" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7700" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7700" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_77_BOOT_FAILURE_TIMEOUT--><XOFYBIN Bins="DB77000001" X="4" Y="5" RuleName="77000001" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000001" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_77_BOOT_FAILURE_HANG--><XOFYBIN Bins="DB77000002" X="4" Y="5" RuleName="77000002" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000002" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_77_BOOT_FAILURE_UNDEFINED--><XOFYBIN Bins="DB77000009" X="4" Y="5" RuleName="77000009" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77000009" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SOLAR--><XOFYBIN Bins="FB7730" X="4" Y="5" RuleName="7730" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7730" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7730" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7730" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SOLAR2--><XOFYBIN Bins="FB7731" X="4" Y="5" RuleName="7731" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7731" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7731" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7731" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SOLAR4--><XOFYBIN Bins="FB7732,[DB77320551],[DB77320241]" X="4" Y="5" RuleName="7732" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7732" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7732" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7732" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--WIN_77_ARLS_SOLAR4_WW47_SOLAR_PPV_SANITY_PX_TIMEOUT--><XOFYBIN Bins="DB77320551" X="6" Y="8" RuleName="77320551" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77320551" Action="ConfigKey" ConfigKey="SST_PowerCycle_CheckBLT" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77320551" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77320551" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--WIN_77_ARLS_SOLAR4_WW47_SOLAR_PPV_SANITY_P0N_CCOREATOM_TIMEOUT--><XOFYBIN Bins="DB77320241" X="6" Y="8" RuleName="77320241" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77320241" Action="ConfigKey" ConfigKey="SST_PowerCycle_CheckBLT" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77320241" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="77320241" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_78_BOOT_FAILURE_FAILED--><XOFYBIN Bins="DB78000000" X="4" Y="5" RuleName="78000000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_BOOT_FAIL--><XOFYBIN Bins="FB7800" X="6" Y="8" RuleName="7800" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7800" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7800" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7800" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_78_BOOT_FAILURE_TIMEOUT--><XOFYBIN Bins="DB78000001" X="4" Y="5" RuleName="78000001" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000001" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_78_BOOT_FAILURE_HANG--><XOFYBIN Bins="DB78000002" X="4" Y="5" RuleName="78000002" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000002" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WIN_78_BOOT_FAILURE_UNDEFINED--><XOFYBIN Bins="DB78000009" X="4" Y="5" RuleName="78000009" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="78000009" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_79_BOOT_FAILURE_FAILED--><XOFYBIN Bins="DB79000000" X="4" Y="5" RuleName="79000000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE--><XOFYBIN Bins="FB7900" X="6" Y="8" RuleName="7900" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7900" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7900" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7900" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_79_BOOT_FAILURE_TIMEOUT--><XOFYBIN Bins="DB79000001" X="4" Y="5" RuleName="79000001" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000001" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_79_BOOT_FAILURE_HANG--><XOFYBIN Bins="DB79000002" X="4" Y="5" RuleName="79000002" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000002" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_79_BOOT_FAILURE_UNDEFINED--><XOFYBIN Bins="DB79000009" X="4" Y="5" RuleName="79000009" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="79000009" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_80_BOOT_FAILURE_FAILED--><XOFYBIN Bins="DB80000000" X="4" Y="5" RuleName="80000000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE--><XOFYBIN Bins="FB8000" X="6" Y="8" RuleName="8000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_80_BOOT_FAILURE_TIMEOUT--><XOFYBIN Bins="DB80000001" X="4" Y="5" RuleName="80000001" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000001" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000001" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_80_BOOT_FAILURE_HANG--><XOFYBIN Bins="DB80000002" X="4" Y="5" RuleName="80000002" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000002" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000002" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE_80_BOOT_FAILURE_UNDEFINED--><XOFYBIN Bins="DB80000009" X="4" Y="5" RuleName="80000009" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="80000009" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--NO_RETEST--><XOFYBIN Bins="FB8090" X="2" Y="3" RuleName="8090" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8090" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8090" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8090" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--LINUX_BOOT_FAIL--><XOFYBIN Bins="FB8100" X="4" Y="5" RuleName="8100" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8100" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8100" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8100" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--LINUX_BOOT_FAIL--><XOFYBIN Bins="FB8200" X="4" Y="5" RuleName="8200" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8200" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8200" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8200" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--LINUX_BOOT_FAIL--><XOFYBIN Bins="FB8300" X="4" Y="5" RuleName="8300" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8300" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8300" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8300" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--LINUX_BOOT_FAIL--><XOFYBIN Bins="FB8400" X="4" Y="5" RuleName="8400" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8400" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8400" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8400" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BOOT_STAGE--><XOFYBIN Bins="FB8500" X="4" Y="5" RuleName="8500" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8500" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8500" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8500" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SVOS_BOOT_FAIL--><XOFYBIN Bins="FB8600" X="4" Y="5" RuleName="8600" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8600" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8600" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8600" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SVOS_BOOT_FAIL--><XOFYBIN Bins="FB8700" X="4" Y="5" RuleName="8700" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8700" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8700" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8700" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SVOS_BOOT_FAIL--><XOFYBIN Bins="FB8800" X="4" Y="5" RuleName="8800" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8800" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8800" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8800" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SVOS_BOOT_FAIL--><XOFYBIN Bins="FB8900" X="4" Y="5" RuleName="8900" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8900" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8900" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="8900" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GENERAL_HW_FAIL--><XOFYBIN Bins="FB9000" X="4" Y="5" RuleName="9000" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9000" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9000" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GENERAL_SW_FAIL--><XOFYBIN Bins="FB9100" X="4" Y="5" RuleName="9100" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9100" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9100" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9100" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--RenderDetectFailed--><XOFYBIN Bins="FB9150" X="4" Y="5" RuleName="9150" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9150" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9150" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9150" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--BIOSFLASH_FAIL--><XOFYBIN Bins="FB9200" X="4" Y="5" RuleName="9200" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9200" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9200" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9200" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--GENERAL_UNLOCK_QDF_TCT_IMAGE--><XOFYBIN Bins="FB9210" X="4" Y="5" RuleName="9210" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9210" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9210" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9210" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9210" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--SET_TEMP_FAIL--><XOFYBIN Bins="FB9220" X="2" Y="3" RuleName="9220" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9220" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9220" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9220" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9220" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EDOK_FAIL--><XOFYBIN Bins="FB9230" X="4" Y="5" RuleName="9230" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9230" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9230" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9230" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--GENERAL_POWER_ON_FAIL--><XOFYBIN Bins="FB9240,[DB92400014],[DB92400004],[DB92400005]" X="4" Y="5" RuleName="9240" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9240" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9240" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9240" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--COLD_REBOOT_FAIL--><XOFYBIN Bins="DB92400004-92400005" X="4" Y="5" RuleName="92409999" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92409999" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92409999" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92409999" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--DVM_V3P3_VOLTAGE_NOT_IN_RANGE--><XOFYBIN Bins="DB92400009" X="1" Y="1" RuleName="92400009" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400009" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400009" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400009" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--DOUBLE_STACK_ERROR--><XOFYBIN Bins="DB92400010" X="1" Y="1" RuleName="92400010" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400010" Action="ConfigKey" ConfigKey="SST_DoubleStack" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400010" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400010" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--DUT_ORIENTATION_FAILED--><XOFYBIN Bins="DB92400011" X="1" Y="1" RuleName="92400011" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400011" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400011" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400011" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400011" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--HOT_SOCKET_DETECTION_FAILED--><XOFYBIN Bins="DB92400013" X="1" Y="1" RuleName="92400013" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400013" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400013" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400013" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--VCCCORE_VOLTAGE_CHECK_FAILED--><XOFYBIN Bins="DB92400014" X="2" Y="3" RuleName="92400014" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400014" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400014" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400014" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--V3P3_VOLTAGE_CHECK_FAILED--><XOFYBIN Bins="DB92400017" X="2" Y="3" RuleName="92400017" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400017" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400017" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400017" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--V3P3_VOLTAGE_OUT_OF_RANGE--><XOFYBIN Bins="DB92400022" X="1" Y="1" RuleName="92400022" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400022" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400022" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92400022" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--TP_TIMEOUT--><XOFYBIN Bins="FB9850" X="1" Y="1" RuleName="9850" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9850" Action="ConfigKey" ConfigKey="SST_PowerCycle_CheckBLT" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9850" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9850" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9850" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />	
+				<Alarm Order="5" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="9850" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--EMULATORVERIFYFAILEDEXCEPTION--><XOFYBIN Bins="DB90000109" X="2" Y="3" RuleName="90000109" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000109" Action="ConfigKey" ConfigKey="SST_PowerCycle_CheckBLT" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000109" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000109" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--HARDWAREEXCEPTION_PICBLT--><XOFYBIN Bins="DB90000123" X="2" Y="3" RuleName="90000123" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000123" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000123" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000123" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--COPY_CONTENT_FAILED--><XOFYBIN Bins="DB92100034" X="2" Y="3" RuleName="92100034" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100034" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100034" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100034" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--WRONG_DC3_VERSION--><XOFYBIN Bins="DB92100030" X="2" Y="3" RuleName="92100030" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100030" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100030" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--ABNORMAL_DIE_FORCE--><XOFYBIN Bins="DB92100025" X="2" Y="3" RuleName="92100025" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100025" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100025" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="92100025" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--HSTTCHARDWAREEXCEPTION_FAILTHERMAL--><XOFYBIN Bins="DB90000112" X="2" Y="3" RuleName="90000112" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100" TriggerIncrementMethod="Max">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000112" Action="ConfigKey" ConfigKey="SST_ReplaceAP" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000112" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000112" Action="ConfigKey" ConfigKey="SST_ReplaceAP_MB" />
+				<Alarm Order="4" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="90000112" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+
+		<!--WOS_HANG--><XOFYBIN Bins="FB7910" X="4" Y="5" RuleName="7910" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7910" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7910" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7910" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--EFI_71_ARLS_DRAGON--><XOFYBIN Bins="FB7190-7192" X="8" Y="10" RuleName="7180" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7910" Action="ConfigKey" ConfigKey="SST_PowerCycle_CheckBLT" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7910" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7910" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--PIPE_F_FAILURE_GROUP--><XOFYBIN Bins="DB75000050-75000053,DB75000059,DB75000080-75000083,DB75000089,DB75000100-75000103,DB75000109,DB75050010-75050013,DB75050019,DB75050030-75050033,DB75050039,DB75050070-75050073,DB75050079,DB75050170-75050173,DB75050179,DB75060020-75060023,DB75060029" X="2" Y="3" RuleName="75050010" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050010" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050010" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--PIPE_G_FAILURE_GROUP--><XOFYBIN Bins="DB75000030-75000033,DB75000039,DB75000060-75000063,DB75000069,DB75000130-75000133,DB75000139,DB75050050-75050053,DB75050059-75050063,DB75050069,DB75050100-75050103,DB75050109,DB75050120-75050123,DB75050129,DB75060040-75060043,DB75060049" X="2" Y="3" RuleName="75050050" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050050" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050050" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050050" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--PIPE_H_FAILURE_GROUP--><XOFYBIN Bins="DB75000070-75000073,DB75000079,DB75000090-75000093,DB75000099,DB75000110-75000113,DB75000119,DB75050020-75050023,DB75050029,DB75050040-75050043,DB75050049,DB75050110-75050113,DB75050119,DB75050130-75050133,DB75050139,DB75060030-75060033,DB75060039" X="2" Y="3" RuleName="75050020" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050020" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050020" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+		<!--PIPE_I_FAILURE_GROUP--><XOFYBIN Bins="DB75000020-75000023,DB75000029,DB75000040-75000043,DB75000049,DB75000120-75000123,DB75000129,DB75050080-75050083,DB75050089-75050093,DB75050099,DB75050140-75050143,DB75050149,DB75050160-75050163,DB75050169,DB75060010-75060013,DB75060019" X="2" Y="3" RuleName="75050080" CollateralType="Cell" ResetAfterTrigger="True" ResetAfterTriggerRegex=".*" SaveRuleOutput="True" UseRetestUnitData="True" AutoClear="False" > 
+			<RepeatTriggerGroup RepeatTriggerHistoryLength="100">
+				<Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050080" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="2" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050080" Action="ConfigKey" ConfigKey="SST_ReplaceMB" />
+				<Alarm Order="3" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="75050080" Action="ConfigKey" ConfigKey="SST_Escalate" />		
+			</RepeatTriggerGroup>
+		</XOFYBIN>
+		
+
+	</RuleGroup>
+
+</ComponentRecipe>

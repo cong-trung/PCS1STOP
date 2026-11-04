@@ -29,21 +29,21 @@ relative to the folder of `config.json`:
 | key | meaning |
 | --- | --- |
 | `paths.alarm_map` | the `AlarmIdMapping.xml` that `pcs_die_file_checker` uses. The copy that ships with the app is `DpcConfig/V1.00/AlarmIdMapping.xml` - nothing outside this folder (no `C:\DpcConfig`) is needed. For another version put the file there and change the path |
-| `checker.bin_digit_exceptions` | Bin numbers allowed although they break the digit rule (`FB` needs 4 digits, `IB` 2, `DB` 8); default `IB: [9]`, `FB: [100, 500, 600, 700]`, `DB: [1000000, 5000000, 6000000, 7000000]` |
+| `checker.bin_digit_exceptions` | Bin numbers allowed although they break the digit rule (`FB` needs 4 digits, `IB` 2, `DB` 8); default `IB: [1, 5, 6, 7, 8, 9]`, `FB: [100, 500, 600, 700, 800]`, `DB: [1000000, 5000000, 6000000, 7000000, 8000000]`. The defaults only fill in what `config.json` lacks: a list in `config.json` replaces the default list of that kind, so change the lists **in `config.json`** (the next check uses them, no restart) - editing the defaults in `config.py` does nothing for a `config.json` that already has them |
 | `checker.skip_workflow_check` | `true` = `pcs_die_file_checker` does not require the Workflow files to exist on PC1 (the workers check them) |
 | `server.host` / `server.port` | where the app listens (restart needed). As shipped `127.0.0.1:8007` = this PC only, which is right behind IIS. `0.0.0.0` = the whole network - only for workers that connect to the port directly (that needs a firewall rule) |
 | `server.public_url` | the address the workers and the users reach the app at: the IIS site, `http://ppv-pcs1stop-ss.intel.com`. `build_worker_package.py` puts it into the PC2 package. Empty = `http://<this PC>:<port>` (a direct connection). Read *Security* below |
 | `server.websocket` | how the browsers stay connected. `false` (default, as shipped) = plain HTTP polling, which works behind every reverse proxy at once. `true` = WebSocket first, polling as the fallback: lighter, but IIS + ARR often cannot relay it - the browser then waits about 20 s before it falls back, or keeps retrying the WebSocket - and the PCS die file, Tasks and Workers pages stay empty meanwhile |
 | `server.compression` | `false` (default, as shipped) = the app compresses nothing: NiceGUI gzips its pages and the socket.io engine gzips every polling response of 1 KB or more, and behind IIS, which compresses by itself, that makes two layers. The browser undoes only one, the NiceGUI connection receives binary garbage, drops the session and reconnects for ever - small updates get through, every big one (a pcs_die_file's tables) is lost. `true` = the app compresses (a direct connection without a proxy) |
-| `ui.product` | `SST` or `HST` - the Product box (remembered here) |
-| `oracle.portable_dir` | the folder with `oracle_db.py`, the Oracle client and the TNS files - the `pcs_oracle_portable` set the Program box looks test programs up with (restart needed). Default `pcs_oracle_portable`. If it is missing the app still starts (the log warns) and a lookup says what is missing |
+| `ui.product` | `SST` or `HST` - the Product box (remembered here): which drive mapping the path checks use, and what the Action / Alarm Config Key pickers of the rule grid offer (see *Action and Alarm Config Key pickers*) |
+| `oracle.portable_dir` | the folder with `oracle_db.py`, the Oracle client and the TNS files - the `pcs_oracle_portable` set the TP Name box looks test programs up with (restart needed). Default `pcs_oracle_portable`. If it is missing the app still starts (the log warns) and a lookup says what is missing. The SQL is not in it: see `queries/` below |
 | `oracle.alias` | the TNS alias the lookup logs in to, default `VN.ARIES` (restart needed) |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
 | `tasks.ui_refresh_s` | refresh of the Tasks and Workers pages (5) |
 | `tasks.api_token` | the secret the workers send as `X-API-Token` (every `/api` call except `/api/health` needs it). Set in the shipped file; plain ASCII |
 
-Pages: `/` pcs_die_file editor (with the *Program* box, see *Program bins* below), `/tasks` the queue (filters, click a row for payload / result / error), `/workers` the PC2 machines.
+Pages: `/` pcs_die_file editor (with the *TP Name* box, see *TP bins* below), `/tasks` the queue (filters, click a row for payload / result / error), `/workers` the PC2 machines.
 Logs go to the console and `data/pcs1stop.log`; at start-up the log says which alarm map is in use.
 Settings are read once at start-up, except `paths.*` and `checker.*`, which are picked up by the next validation.
 Changing the Product box saves `config.json` again, but reads it first and changes only `ui.product`: a hand edit - or a
@@ -175,20 +175,38 @@ Things to know:
   pcs_die_file while the edits go to another.
 * The Product box applies to the checks: after it changes, every path is checked again for the new product.
 
-## Program bins (Program box -> Oracle)
+## TP bins (TP Name box -> Oracle)
 
-The **Program** box in the toolbar takes the name of a test program. It never changes the open pcs_die_file; the bins it
-looks up are compared with the rules (see *Missing bins* below).
-Type or paste it and leave it alone: **10 seconds after the last keystroke** the value is recorded, PC1 looks the
-program's bins up in Oracle and saves them. Every keystroke starts the 10 seconds again; emptying the box cancels the
-wait. The status bar at the bottom follows it: `program: query in 12 s ...`, `program 'EMRR1X3B13K2634A': querying Oracle ...`,
-then `program 'EMRR1X3B13K2634A': 13978 bin(s) queried` - or why it failed (a toast says so too). The CSV's folder is not shown
-there; it is in the log.
+The **TP Name** box in the toolbar takes the name of a test program (TP). It never changes the open pcs_die_file; the bins it
+looks up are compared with the rules (see *Missing bins* and *Unit level bins* below).
+Type or paste it and leave it alone: **10 seconds after the last keystroke** the value is recorded, PC1 looks the TP's
+bins up in Oracle and saves them - and, at the same moment, the bins its units had (see *Unit level bins*). Every keystroke
+starts the 10 seconds again; emptying the box cancels the wait. The status bar at the bottom follows it: `TP: query in 12 s ...`,
+`TP 'EMRR1X3B13K2634A': querying Oracle ...`, then `TP 'EMRR1X3B13K2634A': 13978 bin(s) queried` - or why it failed (a toast says
+so too). The CSV's folder is not shown there; it is in the log.
 
-The lookup is the Test Program query of the old WinForms app (`SQL_PROGRAM_BINS` in
-`pcs_oracle_portable/oracle_db.py`; the program name is a bind variable, never part of the SQL text).
-`oracle_db.py` is imported by its path and never edited here: replace the folder to update it. Of the three columns it
-returns (`PROGRAM_NAME`, `BIN_DESCRIPTION`, `BIN_NUMBER`) the CSV keeps two, each pair once, in the order Oracle sent them:
+The two TP status labels in the status bar (the TP's bins, and the bins of its units) and their progress bars move together:
+every keystroke empties both bars and starts both countdowns (`TP: query in 12 s ...` and `TP Unit: query in 12 s ...`), both
+switch to `querying ...` when the 10 seconds are over, and emptying the box puts both back to `TP Status` / `TP Unit Status`.
+A lookup of the name before that ends while you type again does not touch them (its bins still go to their CSV and a toast
+says how it went), so the bar never shows the outcome for one name next to the countdown for another.
+
+**Where the SQL is.** `pcs_oracle_portable/oracle_db.py` only opens the connection (`OracleDataAccess.connect()`: Kerberos
+login, thick mode) and executes a SQL string (`get_data()`) - there is no SQL in it, so that folder can be moved to another
+project as it is, which then brings its own queries. This app keeps its SQL in the **`queries/`** folder next to `app.py`,
+one `.sql` file per query (a comment on top says what it is and which bind variables it takes):
+
+| file | what | bind variables |
+| --- | --- | --- |
+| `queries/program_bins.sql` | the Test Program query of the old WinForms app: the bins a TP defines | `programname` |
+| `queries/unit_tp_bins.sql` | the unit level query of the old WinForms app, cut down to the bins of its units | `programname`, `min_ww` |
+| `queries/who.sql` | how the login was done (`AUTH`) and which `SERVICE` it reached - for the self-test | - |
+
+The files are read at every lookup: edit and save, the next lookup uses the new text - no restart. A `;` at the end (as SQL
+Developer writes it) is dropped. A bind variable that is no longer in the text is not passed, so a query may be edited
+down. The TP name is always a bind variable, never part of the SQL text. `oracle_db.py` is imported by its path and never
+edited here: replace the folder to update it. Of the three columns `program_bins.sql` returns (`PROGRAM_NAME`,
+`BIN_DESCRIPTION`, `BIN_NUMBER`) the CSV keeps two, each pair once, in the order Oracle sent them:
 
 ```
 %TEMP%\pcs1stop_bins\bins_EMRR1X3B13K2634A.csv
@@ -198,12 +216,13 @@ EMRR1X3B13K2634A,91030000
 ...
 ```
 
-`%TEMP%` is that of the user who runs PC1. The next lookup of the same program replaces the file - also when the program
-has no bins (a toast says so; only the header is left). If the file is open in another program (Excel locks it) the bins go
-to `bins_<program>_1.csv` (`_2`, ...) instead and a toast says so: a lookup never fails for that. In the file name every
-character other than letters, digits, `.`, `_` and `-` becomes `_`.
+`%TEMP%` is that of the user who runs PC1. The next lookup of the same TP replaces the file - also when the TP has no bins
+(a toast says so; only the header is left). If the file is open in another program (Excel locks it) the bins go to
+`bins_<TP>_1.csv` (`_2`, ...) instead and a toast says so: a lookup never fails for that. In the file name every character
+other than letters, digits, `.`, `_` and `-` becomes `_`.
 
-What PC1 needs (`uv run pcs_oracle_portable\oracle_db.py --program <name>` tests all of it):
+What PC1 needs (`uv run pcs_oracle_portable\oracle_db.py --sql queries\program_bins.sql --bind programname=<name>` tests
+all of it; without `--sql` it only checks the login, `--sql queries\who.sql` tells how it was done):
 
 * `oracle.portable_dir` with `oracle_client\bin` (the Oracle 11.2 x64 client - hence `oracledb<4`, which `uv sync`
   installs) and `database_config\` (`TNSNAMES.ORA`, `sqlnet.ora`, `krb5.conf`);
@@ -212,6 +231,33 @@ What PC1 needs (`uv run pcs_oracle_portable\oracle_db.py --program <name>` tests
 
 The app starts without the folder (the log warns), and a lookup then says what is missing. Oracle errors are shown as one
 line, with the hint of `oracle_db.py` where it has one (`ORA-12154`, `ORA-12641`, `DPI-1047`, ...).
+
+## Unit level bins (second Missing Bins tab)
+
+Next to the **Missing Bins** tab is the tab **Missing bins based unit level data lasted 60 days**. It does the same with
+other bins: not the ones the TP *defines*, but the ones its *units had* in the last 60 days, so a bin that no unit ever hits
+does not show up. The lookup is part of the TP Name box: the same 10 seconds, then `queries/unit_tp_bins.sql` runs - in a
+timer of its own, because it takes far longer than the TP's own bins and must not hold up the countdown. Its status has a
+place of its own in the status bar: `TP 'EMRR1X3B13K2634A': querying unit level data ...`, then
+`TP 'EMRR1X3B13K2634A': 412 unit level bin(s) in the last 60 days`.
+
+* The SQL is the unit level query of the old WinForms app (`unit_tp_query`) cut down to what the bins need: `SELECT DISTINCT
+  program_name, interface_bin, functional_bin, data_bin` over `A_Testing_Session` joined to `A_Device_Testing`, so Oracle sends
+  a few thousand rows however many units the TP has. The join of those two tables and the list of operations are the old
+  query's, unchanged. What the old query had besides - the joins to `A_Device_Item` and `A_Device_Item_ULT_Log`, 37 columns
+  in an inline view with its own `SELECT DISTINCT` - never reached the bins and is gone, and `program_name` is compared as it
+  is (`= UPPER(:programname)`; every TP name is upper case) so that the index `TS_TP_FK_I` is used. A TP with 49 000
+  sessions in 30 days went from 171 s to under 1 s, with the same bins; the comment on top of the file says what must stay.
+* **60 days**: the old query started at a fixed work week (`lao_start_ww >= 202521`). Here it is the bind variable `min_ww`,
+  the Intel work week of *today minus 60 days* (`UNIT_DAYS` in `services/program_bins.py`; Sunday to Saturday, week 1 holds
+  January 1, written YYYYWW). It is a work week, not a day: the first week is taken whole.
+* **A unit counts with its most detailed bin**: `data_bin`, else `functional_bin`, else `interface_bin`, written as a whole
+  number (a NUMBER that arrives as `91030000.0` is `91030000`). The bins nest - `91030000` is in `9103`, which is in `91` - so
+  a unit whose bin is in a rule is covered at every level.
+* The bins are saved as `%TEMP%\pcs1stop_bins\unit_bins_<TP>.csv` (`PROGRAM_NAME,BIN_NUMBER`, like `bins_<TP>.csv`; the same
+  rules for a file that is open in Excel) and go through **the same check as the Missing Bins tab** - see below. The tab has
+  its own badge, the status bar says `Validation: OK, 120 bin(s) missing, 15 unit level bin(s) missing`, and it never blocks
+  Save either.
 
 ## Duplicate bins (Warning tab)
 
@@ -237,11 +283,12 @@ The Note is information like Validation Error: it is not part of the file and ca
 
 ## Missing bins (Missing Bins tab)
 
-When a program has been looked up (Program box) the validation also compares its bins with the rules
+When a TP has been looked up (TP Name box) the validation also compares its bins with the rules
 (`pcs_die_file/missing_bins.py`): the bins that **no rule has** are listed in the **Missing Bins** tab of the XOFYBIN table,
 one bin number per line (a badge counts them, the status bar says `Validation: OK, 120 bin(s) missing`). It is information
 only: it never makes the check fail and **Save stays on**. The check runs again whenever the rules change and whenever
-another program is looked up; with no program the tab says what to do.
+another TP is looked up; with no TP the tab says what to do. The tab **Missing bins based unit level data lasted 60 days**
+(see *Unit level bins* above) runs exactly this check on the CSV of the bins the TP's units had.
 
 * The bins are read from the CSV the lookup saved (`PROGRAM_NAME` and `BIN_NUMBER`, see above) with Polars: the file is
   scanned lazily (`polars.scan_csv`), only those two columns are read, and a bin counts once however often it is listed.
@@ -253,6 +300,37 @@ another program is looked up; with no program the tab says what to do.
 * Rules with `LowYield` in their name (any case) are **not used**: they cover nearly everything and would hide every gap.
   A token of a rule that is no bin is skipped (the checker reports it).
 * The list is sorted by bin, an FB before its DBs: `9103`, `91030000`, `91030001`, ..., `9104`, ...
+
+## Action and Alarm Config Key pickers (XOFYBIN Rule grid)
+
+A rule runs its `<Alarm>`s in order, each with an `Action` from `AlarmIdMapping.xml`. The Action `ConfigKey` runs the
+workflows of a ConfigGroup of the **List Workflow** table - the one the alarm's `ConfigKey` attribute names - so the keys
+belong to the ConfigKey actions, in the same order (`tests/EMR_MCC_Die.xml`: `Socket` -> `ConfigKey` (`Check_DUT_Orientation`)
+-> `Escalate`). In **Edit mode** a double click (or Enter, or just typing) on the **Action** or **Alarm Config Key** cell of a
+rule opens a picker under the cell instead of a text box:
+
+* **Choose** (top): a search box and the choices - the `Actions` of `AlarmIdMapping.xml`, or the Keys of the List Workflow
+  table (read when the picker opens, so a key you have just added is there). Click a choice to add it, click it again to add
+  it twice: the real files have `Socket; Socket; Escalate`, and the same key twice in one rule (`SST_ReplaceMB`,
+  `SST_ReplaceMB`, `SST_Escalate`). Enter in the search box adds the first match.
+* **Order**: what is picked, in order. Drag a row to move it, `x` takes it out.
+* **Apply**, Enter in an empty search box, a click outside or Tab (which then goes on to the next cell, as in a text cell)
+  apply the list; Esc and **Cancel** drop it. Nothing is sent when the list did not change.
+
+The **Product** box decides what is picked (`pcs_die_file/flow.py`):
+
+| Product | Action cell | Alarm Config Key cell |
+| --- | --- | --- |
+| HST | the actions of the rule. A ConfigKey action keeps its key when it is dragged to another place, and one that is taken out takes its key with it | only for a rule that has a ConfigKey action: one slot for each of them, in the order of those actions (`x` empties a slot; there cannot be more keys than ConfigKey actions) |
+| SST | not edited - it is always `ConfigKey` | the keys: one ConfigKey alarm for each key, and a key may come up again |
+
+The list goes to the server (`pcs_flow`) and the rule gets exactly those alarms - `PcsDieFileDoc.set_flow` - in one undo
+step. More alarms are copies of the last one (with the next `Order`), fewer take the last alarms out, and what else an
+alarm carries (Order, BinOrToken, Severity ...) stays with its place. The server checks the picked names against the alarm map
+and the List Workflow keys; a name the rule has already is always fine, so a pcs_die_file with an odd value can still be edited
+(the picker shows it in orange). In SST a rule that has other actions than ConfigKey (an HST rule, or a file opened under the
+wrong Product) is only changed after a question, because every one of its actions becomes ConfigKey. Paste, cut and Delete
+still work on these cells as text (`a; b; c` = one value per alarm) - except on the SST Action cell, which they leave alone.
 
 ## Task life cycle
 
@@ -300,8 +378,9 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
   a redirect is never followed (it would carry the token on to wherever it points).
 * A pcs_die_file can name any path, including `\\any-server\share\...` - a check makes the worker PC contact that server.
   Set `allowed_roots` (`--allowed-root`) to the folders and shares your pcs_die_files really use.
-* The Program box makes PC1 query Oracle with PC1's own Kerberos login (read-only, the name is a bind variable) for
-  whoever can reach the site - the 10 seconds are a convenience of the page, not a rate limit.
+* The TP Name box makes PC1 query Oracle with PC1's own Kerberos login (read-only, the name is a bind variable) for
+  whoever can reach the site - the 10 seconds are a convenience of the page, not a rate limit. The unit level query is the
+  heavy one (it can run for minutes), so mind who may reach the site.
 * Request bodies are size-checked before they are read, so a huge request is refused (413) with or without a token.
 
 ## Layout
@@ -312,18 +391,22 @@ config.py, config.json  every path and knob (paths are relative to config.json)
 DpcConfig/V1.00/        AlarmIdMapping.xml for the pcs_die_file checker
 database/               SQLAlchemy models, SQLite engine (WAL, BEGIN IMMEDIATE), init_db
 services/               task_service, worker_service, timeout_monitor (+ path_checks: the check_path task, its tracker;
-                        program_bins: the Program box's Oracle lookup)
+                        program_bins: the TP Name box's Oracle lookups)
 api/                    task_api, worker_api, schemas, token check, request-size limit
 scheduler/monitor.py    runs the timeout monitor every 60 s
 ui/                     pcs_die_file_page (the editor), tasks_page, workers_page
-pcs_die_file/                 model.py (editable tables, undo, export), validation.py, duplicates.py (the duplicate-bins step), missing_bins.py (the missing-bins step, reads the program's CSV with Polars), pcs_die_file_checker.py
-pcs_oracle_portable/    oracle_db.py + Oracle client + TNS files (oracle.portable_dir): imported by path, never edited
+pcs_die_file/                 model.py (editable tables, undo, export), validation.py, duplicates.py (the duplicate-bins step), missing_bins.py (the missing-bins step, reads the TP's CSVs with Polars), flow.py (what the Action / Alarm Config Key pickers send -> the alarms of a rule), pcs_die_file_checker.py
+pcs_oracle_portable/    oracle_db.py (connection + execute a SQL string, no SQL) + Oracle client + TNS files (oracle.portable_dir): imported by path
+queries/                the SQL of the app, one .sql file per query (program_bins, unit_tp_bins, who): read at every lookup
 worker/                 worker_agent.py + worker_config.json (stand-alone; the template of the PC2 package)
 deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts), iis/web.config
 dist/                   the built PC2 package (git-ignored: it holds the API token)
-static/                 pcs_grid.js, pcs.css, ops.css
+static/                 pcs_grid.js (keyboard / clipboard layer + the pickers' cell editor), pcs.css, ops.css
 tests/                  uv run pytest   (Python 3.10+)
 ```
 
 `pcs_die_file/pcs_die_file_checker.py` is imported unchanged - replace the file to update the checker (its own command-line default
 `C:\DpcConfig\...` is not used by the app).
+
+**Working on the UI.** A change to the pages (`ui/`, `static/`) needs no tests - do not write or run any for it, the page is
+checked by eye in the browser. The rest (services, API, database, `pcs_die_file/`, the worker) keeps its tests.

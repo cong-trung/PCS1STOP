@@ -24,6 +24,10 @@ Cell rules
       than the rule has alarms changes the number of alarms: new ones are copies of the last alarm with the next
       Order, surplus ones are taken out from the end (one undo step, like every other edit)
     * RuleGroup-level columns (Rule Group Name, Valid Operations) change the whole group
+    * ``set_flow`` (what the Action / Alarm Config Key pickers of the rule grid use, see ``flow.py``) gives a rule exactly
+      the alarms it is told - ``(Action, ConfigKey)`` per alarm, written as they are, no ``;`` list - in one undo step.
+      ``flow`` reads them back, and ``row_dict`` of an XOFYBIN rule carries them as the hidden ``_flow``: an alarm cell
+      collapses equal values (three ``Socket`` alarms read ``Socket``), the flow does not
 
 Rows
     ``add_row`` inserts a new XOFYBIN rule / workflow ConfigGroup right below a given row.  It is a copy of that
@@ -91,6 +95,8 @@ RULE_ATTRS = {
 #: the columns that are made of the <Alarm>s of a rule - they read differently when an edit changes the number of alarms
 #: (so do the RULE_ATTRS columns in a file that keeps those attributes on the alarms)
 ALARM_COLUMNS = frozenset({"action", "alarm_config_key", "config_key", "bin_or_token"})
+#: what the undo entry of ``set_flow`` calls its field: it changes the Action and the ConfigKey of the alarms at once
+_FLOW = "flow"
 _WS = " \t\r\n"
 
 _XML_BAD_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
@@ -618,6 +624,8 @@ class PcsDieFileDoc:
         for f, _ in COLUMNS[row.table]:
             d[f] = self._get(row, f)
         d["_ro"] = sorted(row.ro)
+        if row.table == "xofy":  # what the cell text cannot say: one value per alarm (see ``flow``)
+            d["_flow"] = [list(step) for step in self._flow(row)]
         return d
 
     def info(self) -> dict:
@@ -649,6 +657,24 @@ class PcsDieFileDoc:
             and f not in READ_ONLY_FIELDS
             and any(f == c for c, _ in COLUMNS[table])
         )
+
+    @staticmethod
+    def _flow(row: _Row) -> list[tuple[str, str]]:
+        return [(_attr(a, "Action"), _attr(a, "ConfigKey")) for a in _alarms(row.el)]
+
+    def flow(self, table: str, row_id: str) -> list[tuple[str, str]] | None:
+        """``(Action, ConfigKey)`` of every alarm of a rule, in order, as the tree has them right now - the alarm cells
+        collapse equal values (three ``Socket`` alarms read ``Socket``), this does not.  None = no such rule, or a rule
+        without alarms."""
+        row = self._by_id.get((table, row_id))
+        if row is None or table != "xofy" or not _alarms(row.el):
+            return None
+        return self._flow(row)
+
+    def workflow_keys(self) -> list[str]:
+        """The distinct, non-empty Keys of the List Workflow table in file order - the names a ConfigKey may use."""
+        keys = (self._get(row, "key").strip() for row in self._rows["workflow"])
+        return list(dict.fromkeys(k for k in keys if k))
 
     def _get(self, row: _Row, f: str) -> str:
         el, t = row.el, row.table
@@ -1167,6 +1193,63 @@ class PcsDieFileDoc:
             ):
                 touched[(row.table, row.id, f)] = None
 
+    def set_flow(
+        self, table: str, row_id: str, steps: Iterable[tuple[str, str]]
+    ) -> EditResult:
+        """Give a rule exactly these alarms: step i = ``(Action, ConfigKey)`` of alarm i, an empty ConfigKey = the alarm
+        has none.  The rule is resized once (new alarms are copies of the last alarm, surplus ones go from the end, as
+        for the alarm cells) and every alarm gets its two values - in one go: one undo step, and when a write fails the
+        rule stays as it was.  What an alarm carries besides (Order, BinOrToken, Severity ...) stays with its place.
+        The values are written as they are - no ``;`` list is parsed, so a Key may contain one."""
+        res = EditResult()
+        row = self._by_id.get((table, row_id))
+        if table != "xofy" or row is None:
+            res.skipped_unknown += 1
+            return res
+        if "action" in row.ro:  # a rule without alarms
+            res.skipped_readonly += 1
+            return res
+        wanted = [
+            (self._normalize("action", a), self._normalize("alarm_config_key", k))
+            for a, k in steps
+        ]
+        if not wanted:
+            res.errors.append("A rule needs at least one alarm.")
+            return res
+        alarms = _alarms(row.el)
+        if len(wanted) != len(alarms) and len({a.getparent() for a in alarms}) > 1:
+            res.errors.append(
+                "The alarms of this rule are not all in one place, so their number cannot be changed here - "
+                "edit the Action cell as text."
+            )
+            return res
+        if wanted == self._flow(row):
+            res.unchanged += 1
+            return res
+        before = self._get(row, "action")
+        self._journal = []
+        try:
+            alarms = self._resize_alarms(alarms, len(wanted))
+            for a, (action, key) in zip(alarms, wanted):
+                self._set_attr(a, "Action", action)
+                self._set_attr(a, "ConfigKey", key)
+        except ValueError as ex:  # lxml refuses an invalid XML string: the rule stays as it was
+            self._put_attrs(tuple(self._journal), forward=False)
+            res.errors.append(str(ex))
+            return res
+        finally:
+            attrs, self._journal = tuple(self._journal), None
+        self._rev += 1
+        self._undo.append(
+            [_Change(table, row_id, _FLOW, before, self._get(row, "action"), attrs)]
+        )
+        self._redo.clear()
+        res.applied = 1
+        touched: dict[tuple[str, str, str], None] = {}
+        self._touch_alarm_cells(touched, row)
+        res.updates = self._collect(touched)
+        return res
+
     def _collect(self, touched) -> list[CellUpdate]:
         out: dict[tuple[str, str, str], CellUpdate] = {}
         for t, r, f in touched:
@@ -1233,7 +1316,10 @@ class PcsDieFileDoc:
                 self._set(row, "comment", ch.old if reverse else ch.new)
             else:
                 self._put_attrs(ch.attrs, forward=not reverse)
-            touched[(ch.table, ch.row_id, ch.field)] = None
+            if ch.field == _FLOW:  # (not a column: the Action and the ConfigKey of the alarms changed together)
+                self._touch_alarm_cells(touched, row)
+            else:
+                touched[(ch.table, ch.row_id, ch.field)] = None
             if any(isinstance(x, _AlarmOp) for x in ch.attrs):
                 self._touch_alarm_cells(touched, row)
             for sib in self._siblings(row, ch.field):

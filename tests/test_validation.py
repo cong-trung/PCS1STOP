@@ -215,9 +215,9 @@ def test_every_rule_of_the_real_die_file_takes_a_list_of_actions_and_stays_valid
 
 
 # ----------------------------------------------------------------------------------------- the missing bins step
-def write_bins(tmp_path: Path, numbers, program: str = "EMRA1X3B13F2633") -> Path:
-    """The CSV the Program box saves: PROGRAM_NAME and BIN_NUMBER."""
-    path = tmp_path / f"bins_{program}.csv"
+def write_bins(tmp_path: Path, numbers, program: str = "EMRA1X3B13F2633", prefix: str = "bins") -> Path:
+    """The CSV the TP Name box saves: PROGRAM_NAME and BIN_NUMBER."""
+    path = tmp_path / f"{prefix}_{program}.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["PROGRAM_NAME", "BIN_NUMBER"])
@@ -226,9 +226,16 @@ def write_bins(tmp_path: Path, numbers, program: str = "EMRA1X3B13F2633") -> Pat
 
 
 def check_with_program(xml: str, csv_path: Path) -> rv.CheckResult:
-    """What the page does once a program has been looked up: the check with the rules and the program's CSV."""
+    """What the page does once a TP has been looked up: the check with the rules and the TP's CSV."""
     doc = PcsDieFileDoc(xml.encode("utf-8"), "r.xml")
     return rv.run_check(doc.current_text(), "r.xml", Settings(DEFAULT_CONFIG_PATH).alarm_map, True, None, doc.bin_rules(), csv_path)
+
+
+def check_with_units(xml: str, unit_csv: Path, program_csv: Path | None = None) -> rv.CheckResult:
+    """The same with the CSV of the bins the TP's units had (and, if given, the TP's own CSV too)."""
+    doc = PcsDieFileDoc(xml.encode("utf-8"), "r.xml")
+    return rv.run_check(doc.current_text(), "r.xml", Settings(DEFAULT_CONFIG_PATH).alarm_map, True, None, doc.bin_rules(),
+                        program_csv, unit_csv)
 
 
 def test_the_bins_of_the_program_that_no_rule_has_are_listed_and_the_check_still_passes(tmp_path):
@@ -238,7 +245,7 @@ def test_the_bins_of_the_program_that_no_rule_has_are_listed_and_the_check_still
     assert res.missing == [9, 9104, 91040000]  # 9 is only in the LowYield rule, which does not count
     assert res.n_missing == 3 and res.n_program_bins == 7
     lines = res.missing_text.splitlines()
-    assert lines[0] == "program 'EMRA1X3B13F2633': 3 of 7 bin(s) are in no rule."
+    assert lines[0] == "TP 'EMRA1X3B13F2633': 3 of 7 bin(s) are in no rule."
     assert lines[-3:] == ["9", "9104", "91040000"]  # one bin number per line, nothing else
     assert res.text.startswith("No errors found")  # the Error tab says nothing about it
 
@@ -246,7 +253,7 @@ def test_the_bins_of_the_program_that_no_rule_has_are_listed_and_the_check_still
 def test_all_bins_in_a_rule_says_so(tmp_path):
     res = check_with_program(die_file(("Bin9103", "FB9103")), write_bins(tmp_path, [9103, 91030000]))
     assert res.missing == [] and res.n_missing == 0 and res.n_program_bins == 2
-    assert res.missing_text.splitlines()[0] == "program 'EMRA1X3B13F2633': all 2 bin(s) are in a rule."
+    assert res.missing_text.splitlines()[0] == "TP 'EMRA1X3B13F2633': all 2 bin(s) are in a rule."
 
 
 def test_values_of_the_csv_that_are_no_bin_number_are_told(tmp_path):
@@ -255,24 +262,24 @@ def test_values_of_the_csv_that_are_no_bin_number_are_told(tmp_path):
 
 
 def test_a_csv_without_bins_says_so(tmp_path):
-    empty = check_with_program(die_file(("Bin9103", "FB9103")), write_bins(tmp_path, []))  # a program with no bins
+    empty = check_with_program(die_file(("Bin9103", "FB9103")), write_bins(tmp_path, []))  # a TP with no bins
     assert empty.ok and empty.missing == [] and empty.n_program_bins == 0
     assert empty.missing_text.splitlines()[0] == "The CSV has no bin number to check."
     junk = check_with_program(die_file(("Bin9103", "FB9103")), write_bins(tmp_path, ["abc"]))
-    assert junk.missing_text.splitlines()[0] == "program 'EMRA1X3B13F2633': the CSV has no bin number to check."
+    assert junk.missing_text.splitlines()[0] == "TP 'EMRA1X3B13F2633': the CSV has no bin number to check."
     assert "1 row(s) of the CSV are no bin number" in junk.missing_text
 
 
 def test_without_a_program_the_tab_says_what_to_do():
     res = check_with_duplicates(die_file(("Bin9103", "FB9103")))  # no CSV
     assert res.missing == [] and res.n_program_bins == 0 and res.n_missing == 0
-    assert res.missing_text.startswith("Type a program name in the Program box")
+    assert res.missing_text.startswith("Type a TP name in the TP Name box")
 
 
 def test_a_csv_that_cannot_be_read_is_told_in_the_tab_and_is_no_error(tmp_path):
     res = check_with_program(die_file(("Bin9103", "FB9103")), tmp_path / "gone" / "bins_X.csv")
     assert res.ok and res.n_missing == 0 and res.warnings == []
-    assert res.missing_text == "The bins of the program were not checked: bins_X.csv cannot be read: the file is gone - query the program again"
+    assert res.missing_text == "The bins of the TP were not checked: bins_X.csv cannot be read: the file is gone - query the TP again"
 
 
 def test_a_crash_in_the_missing_bins_step_does_not_stop_the_check(tmp_path, monkeypatch):
@@ -284,7 +291,61 @@ def test_a_crash_in_the_missing_bins_step_does_not_stop_the_check(tmp_path, monk
     assert res.ok and res.missing == []  # the checker's part is untouched
     assert res.warnings == ["Missing bins were not checked: RuntimeError: boom"]
     assert "[warn] Missing bins were not checked" in res.text
-    assert res.missing_text == "The bins of the program were not checked: RuntimeError: boom"
+    assert res.missing_text == "The bins of the TP were not checked: RuntimeError: boom"
+
+
+# ----------------------------------------------------------------------------------- the unit level step
+def test_the_bins_the_units_had_that_no_rule_has_are_listed_in_their_own_tab(tmp_path):
+    xml = die_file(("Bin9103", "FB9103"), ("XofY_LowYield", "IB9-99"), ("Bin70xx", "IB70,[FB7056]"))
+    res = check_with_units(xml, write_bins(tmp_path, [91030000, 91040000, 70560000, 91040001], prefix="unit_bins"))
+    assert res.ok and res.n_errors == 0  # information only, like the Missing Bins tab
+    assert res.unit_missing == [91040000, 91040001] and res.n_unit_missing == 2 and res.n_unit_bins == 4
+    lines = res.unit_missing_text.splitlines()
+    assert lines[0] == "TP 'EMRA1X3B13F2633' (unit level data): 2 of 4 bin(s) are in no rule."
+    assert "most detailed bin" in lines[1]
+    assert lines[-2:] == ["91040000", "91040001"]
+    assert res.missing == [] and res.n_missing == 0 and res.n_program_bins == 0  # the other tab is not touched
+    assert res.missing_text.startswith("Type a TP name in the TP Name box")
+
+
+def test_the_two_tabs_are_checked_against_their_own_csv(tmp_path):
+    xml = die_file(("Bin9103", "FB9103"))
+    res = check_with_units(xml, write_bins(tmp_path, [91030000, 92000000], prefix="unit_bins"), write_bins(tmp_path, [9103, 9104, 9105]))
+    assert res.missing == [9104, 9105] and res.n_missing == 2 and res.n_program_bins == 3
+    assert res.unit_missing == [92000000] and res.n_unit_missing == 1 and res.n_unit_bins == 2
+
+
+def test_all_unit_bins_in_a_rule_says_so_and_no_unit_data_says_what_to_do(tmp_path):
+    xml = die_file(("Bin9103", "FB9103"))
+    res = check_with_units(xml, write_bins(tmp_path, [91030000, 91039999], prefix="unit_bins"))
+    assert res.unit_missing == [] and res.n_unit_bins == 2
+    assert res.unit_missing_text.splitlines()[0] == "TP 'EMRA1X3B13F2633' (unit level data): all 2 bin(s) are in a rule."
+    empty = check_with_units(xml, write_bins(tmp_path, [], prefix="unit_bins"))  # a TP without units in the window
+    assert empty.ok and empty.unit_missing_text.splitlines()[0] == "The CSV has no bin number to check."
+    nothing = check_with_duplicates(xml)  # no unit level CSV yet
+    assert nothing.unit_missing == [] and nothing.n_unit_bins == 0
+    assert nothing.unit_missing_text == "Type a TP name in the TP Name box: the bins its units had that no rule has are listed here."
+
+
+def test_a_unit_csv_that_cannot_be_read_is_told_in_its_tab_and_is_no_error(tmp_path):
+    res = check_with_units(die_file(("Bin9103", "FB9103")), tmp_path / "gone" / "unit_bins_X.csv")
+    assert res.ok and res.n_unit_missing == 0 and res.warnings == []
+    assert res.unit_missing_text == (
+        "The unit level bins of the TP were not checked: unit_bins_X.csv cannot be read: the file is gone - query the TP again"
+    )
+    assert res.missing_text.startswith("Type a TP name")  # the other tab does not mind
+
+
+def test_a_crash_in_the_unit_level_step_does_not_stop_the_check(tmp_path, monkeypatch):
+    def boom(rules, path):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(rv.mb, "find_missing", boom)
+    res = check_with_units(die_file(("Bin9103", "FB9103")), write_bins(tmp_path, [9103], prefix="unit_bins"))
+    assert res.ok and res.unit_missing == []
+    assert res.warnings == ["Unit level missing bins were not checked: RuntimeError: boom"]
+    assert "[warn] Unit level missing bins were not checked" in res.text
+    assert res.unit_missing_text == "The unit level bins of the TP were not checked: RuntimeError: boom"
 
 
 def test_the_rules_may_come_as_a_generator_and_both_steps_get_them(tmp_path):

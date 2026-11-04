@@ -4,7 +4,10 @@
  *   1. tracks a rectangular cell range per grid (click, drag, Shift+click, Shift+arrows, Ctrl+A),
  *   2. turns Ctrl+C / Ctrl+X / Ctrl+V / Delete / Ctrl+Z / Ctrl+Y / Ctrl+S / Ctrl+O into events for the server,
  *   3. writes cell updates that the server sends back (pcs.apply) and shows rows it added / took out (pcs.rows),
- *   4. draws the trash icon of every row (pcs.trashCell) and asks the server to delete that row.
+ *   4. draws the trash icon of every row (pcs.trashCell) and asks the server to delete that row,
+ *   5. is the cell editor (PickerEditor) of the Action and Alarm Config Key columns of the rule grid: a popup with a search
+ *      box and the choices above the picked ones, which are dragged into order.  It does not write the cell: it sends the
+ *      list (pcs_flow) and the server gives the rule exactly those alarms (pcs_die_file/flow.py).
  * Real text inputs (cell editors, dialogs, the file-path box) keep the browser's native shortcuts.
  */
 (() => {
@@ -12,9 +15,14 @@
 
   const TRASH = '_del'; // id of the trash-icon column: not a data column, never part of a selection / copy
   const READ_ONLY = ['error', 'note', 'check']; // computed by the validation / the workers, never editable
+  const CONFIG_KEY = 'ConfigKey'; // the Action whose alarms run the workflows of a ConfigGroup (the alarm's ConfigKey)
 
   const S = (window.pcs = {
     editMode: false,
+    product: 'SST', // SST | HST - set by the page (setProduct): what the pickers of the rule grid offer
+    actions: [], // the Action names of AlarmIdMapping.xml - set by the page (setActions)
+    picking: false, // true while a picker is open: its keys and pastes are its own, never the grid's
+    picker: null, // the PickerEditor that is open
     uploadId: null,
     active: null, // key of the grid that was used last
     ranges: {}, // key -> {a: {r, c}, b: {r, c}}  (a = anchor, b = moving corner)
@@ -69,6 +77,19 @@
     notice(`Edit mode is off - press Edit (toolbar or button) to ${what || 'change cells'}.`, 'warning');
     return true;
   };
+  /** (Action, ConfigKey) of every alarm of a rule row, as the server sends them (the cell texts collapse equal values) */
+  const flowOf = (data) => (data && Array.isArray(data._flow) ? data._flow : []);
+  const isSst = () => String(S.product).toUpperCase() !== 'HST';
+  /** The cells the product keeps from being edited: SST has no Action to pick (it is always ConfigKey), and with HST the
+   *  Alarm Config Key is for the rules that have a ConfigKey action. */
+  const productAllows = (table, field, data) => {
+    if (table !== 'xofy') return true;
+    if (field === 'action') return !isSst();
+    if (field === 'alarm_config_key') return isSst() || flowOf(data).some((s) => s[0] === CONFIG_KEY);
+    return true;
+  };
+  /** Cells that text edits (paste, cut, Delete) must leave alone: the server refuses them too. */
+  S.locked = (key, field) => key === 'xofy' && field === 'action' && isSst();
 
   /** Cell under a DOM node -> {r, c} in displayed order. */
   function cellAt(node, api) {
@@ -111,7 +132,7 @@
       if (!node) continue;
       for (let c = R.c1; c <= R.c2; c++) {
         const field = cs[c].getColId();
-        if (READ_ONLY.includes(field)) continue;
+        if (READ_ONLY.includes(field) || S.locked(key, field)) continue;
         out.push({ id: node.id, field, value: blank ? '' : node.data ? node.data[field] : '' });
       }
     }
@@ -172,7 +193,35 @@
 
   // ------------------------------------------------------- hooks used by the grid options (Python side)
   S.isEditable = (p) =>
-    S.editMode && !READ_ONLY.includes(p.colDef.field) && !(((p.data || {})._ro) || []).includes(p.colDef.field);
+    S.editMode &&
+    !READ_ONLY.includes(p.colDef.field) &&
+    !(((p.data || {})._ro) || []).includes(p.colDef.field) &&
+    productAllows(p.context && p.context.key, p.colDef.field, p.data);
+
+  /** The page tells which product the Product box shows: the pickers (and which cells can be edited) follow it. */
+  S.setProduct = (product) => {
+    S.product = String(product || '').toUpperCase() === 'HST' ? 'HST' : 'SST';
+    for (const key of allKeys()) refresh(key);
+  };
+
+  /** The page tells the Action names of AlarmIdMapping.xml: the choices of the Action picker. */
+  S.setActions = (names) => {
+    S.actions = Array.isArray(names) ? names.map(String) : [];
+  };
+
+  /** The Keys of the List Workflow table, distinct, in table order: the choices of the Alarm Config Key picker.  Read
+   *  from the grid when the picker opens, so an edited, added or deleted key is there at once. */
+  S.workflowKeys = () => {
+    const api = apiOf('workflow');
+    const keys = [];
+    if (api) {
+      api.forEachNode((node) => {
+        const key = String((node.data && node.data.key) || '').trim();
+        if (key && !keys.includes(key)) keys.push(key);
+      });
+    }
+    return keys;
+  };
 
   /** Look of a Check cell, from the text the server wrote (see services/path_checks.py): ok | bad | warn | wait | '' */
   S.checkKind = (text) => {
@@ -218,7 +267,7 @@
     const push = (r, c, value) => {
       const node = api.getDisplayedRowAtIndex(r);
       const field = cs[c].getColId();
-      if (node && !READ_ONLY.includes(field)) cells.push({ id: node.id, field, value });
+      if (node && !READ_ONLY.includes(field) && !S.locked(key, field)) cells.push({ id: node.id, field, value });
     };
     let last = { r: R.r1, c: R.c1 };
     if (M.length === 1 && M[0].length === 1 && (R.r2 > R.r1 || R.c2 > R.c1)) {
@@ -311,6 +360,7 @@
         const node = api.getRowNode(id);
         if (!node || !node.data) continue;
         node.setData({ ...node.data, ...changes });
+        if (S.picker && S.picker.table === key && S.picker.rowId === id && '_flow' in changes) S.picker.refreshFrom(node.data);
         heights = heights || 'bins' in changes || 'comment' in changes;
       }
       if (heights) api.resetRowHeights();
@@ -384,6 +434,342 @@
         }
       : null;
   };
+
+  // ---------------------------------------------------------------- the picker: cell editor of Action / Alarm Config Key
+  const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+
+  const h = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  };
+
+  /** AG Grid cell editor of the Action and Alarm Config Key columns of the rule grid: a popup under the cell.
+   *  Top: a search box and the choices (click one to add it - the same one may be added again).  Below: what is picked,
+   *  in order - drag a row to move it, x takes it out.  What the list means, per column and product:
+   *    Action (HST)             the actions of the rule; each one remembers the alarm it was, so it keeps its key
+   *    Alarm Config Key (SST)   the keys, one ConfigKey alarm for each
+   *    Alarm Config Key (HST)   one slot per ConfigKey action of the rule, in the order of those actions (x empties a slot)
+   *  Closing the popup (Apply, Enter in an empty search box, a click outside, Tab) sends the list as pcs_flow when it
+   *  changed; Esc and Cancel drop it.  The server writes the cell (pcs.apply), so getValue() hands the grid the old value. */
+  class PickerEditor {
+    init(params) {
+      this.params = params;
+      this.table = params.context && params.context.key;
+      this.rowId = params.data && params.data.id;
+      this.field = params.colDef.field;
+      this.query = '';
+      this.shown = []; // the choices the search text lets through
+      this.hot = 0; // the highlighted one of them while there is a search text (Enter adds it)
+      this.dragFrom = null;
+      this.dropAt = null;
+      this.done = false;
+      this.cancelled = false;
+      this.byAction = this.field === 'action';
+      this.slots = !this.byAction && !isSst(); // HST keys: an empty slot is an item without a value
+      this.title = this.byAction ? 'Action' : 'Alarm Config Key';
+      this.choices = this.byAction ? S.actions.slice() : S.workflowKeys();
+      this.load(params.data);
+      // Esc closes the popup the way a click outside does - which would apply the list, so Esc is noted first
+      this.onEsc = (e) => {
+        if (e.key === 'Escape') this.cancelled = true;
+      };
+      document.addEventListener('keydown', this.onEsc, true);
+      S.picking = true;
+      S.picker = this;
+      this.build();
+      const typed = params.eventKey;
+      if (typeof typed === 'string' && typed.length === 1) {
+        this.search.value = typed; // the key that started the edit is the first letter to look for
+        this.query = typed.toLowerCase();
+        this.render();
+      }
+    }
+
+    /** the list as the rule has it now: ``data`` is the row as the server sent it */
+    load(data) {
+      this.base = flowOf(data).map((s) => [String(s[0] || ''), String(s[1] || '')]); // (what the server checks the pick against)
+      if (this.byAction) {
+        this.items = this.base.map((s, i) => ({ v: s[0], from: i }));
+      } else {
+        const keys = (this.slots ? this.base.filter((s) => s[0] === CONFIG_KEY) : this.base).map((s) => s[1]);
+        this.items = keys.filter((k) => this.slots || k).map((v) => ({ v }));
+      }
+      this.start = JSON.stringify(this.result());
+    }
+
+    /** The server sent new values for the row of this picker: the pick before it, applied just now (Tab goes from the
+     *  Action to the Alarm Config Key cell at once, so that one was built from the rule as it was).  Start over from them
+     *  while nothing was changed here; a list that was changed is refused by the server if it does not fit any more. */
+    refreshFrom(data) {
+      if (this.done || JSON.stringify(this.result()) !== this.start) return;
+      this.load(data);
+      this.render();
+    }
+
+    getGui() {
+      return this.root;
+    }
+
+    afterGuiAttached() {
+      this.search.focus();
+      const end = this.search.value.length;
+      this.search.setSelectionRange(end, end);
+    }
+
+    getValue() {
+      return this.params.value;
+    }
+
+    /** The grid asks this once, when editing ends the normal way (not on Esc): the place to send the list. */
+    isCancelAfterEnd() {
+      this.commit();
+      return true; // the grid must not write a value of its own
+    }
+
+    destroy() {
+      document.removeEventListener('keydown', this.onEsc, true);
+      if (S.picker === this) {
+        S.picker = null;
+        S.picking = false; // (not when the picker of the next cell has taken over already: Tab goes from one to the other)
+      }
+    }
+
+    /** What goes to the server: Action - [action, place the alarm had or null] pairs; keys - the key of each item. */
+    result() {
+      return this.byAction ? this.items.map((x) => [x.v, x.from == null ? null : x.from]) : this.items.map((x) => x.v);
+    }
+
+    commit() {
+      if (this.done) return;
+      this.done = true;
+      const result = this.result();
+      if (this.cancelled || JSON.stringify(result) === this.start) return;
+      emitEvent('pcs_flow', { table: this.table, id: this.rowId, field: this.field, items: result, base: this.base });
+    }
+
+    build() {
+      const root = (this.root = h('div', 'pcs-pick'));
+      const head = h('div', 'pcs-pick-head');
+      head.append(h('span', 'pcs-pick-title', this.title), (this.note = h('span', 'pcs-pick-note')));
+      const search = (this.search = h('input', 'pcs-pick-search'));
+      search.type = 'text';
+      search.placeholder = 'Search ...';
+      search.autocomplete = 'off';
+      search.spellcheck = false;
+      search.addEventListener('input', () => {
+        this.query = search.value.trim().toLowerCase();
+        this.hot = 0;
+        this.renderChoices();
+      });
+      search.addEventListener('keydown', (e) => this.onSearchKey(e));
+      this.choiceBox = h('div', 'pcs-pick-list pcs-pick-choices');
+      this.orderBox = h('div', 'pcs-pick-list pcs-pick-order');
+      this.orderBox.addEventListener('dragover', (e) => {
+        if (this.dragFrom == null || e.target !== this.orderBox) return; // (the rows have their own: before / after them)
+        e.preventDefault();
+        this.dropAt = this.items.length; // below the last row: put it last
+        this.markDrop();
+      });
+      this.orderBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.finishDrag(true);
+      });
+      const foot = h('div', 'pcs-pick-foot');
+      const cancel = h('button', 'pcs-pick-btn', 'Cancel');
+      const apply = h('button', 'pcs-pick-btn pcs-pick-apply', 'Apply');
+      cancel.type = apply.type = 'button';
+      cancel.addEventListener('click', () => {
+        this.cancelled = true;
+        this.params.api.stopEditing(true);
+      });
+      apply.addEventListener('click', () => this.params.stopEditing());
+      foot.append(cancel, apply);
+      root.append(
+        head,
+        h('div', 'pcs-pick-sub', 'Choose'),
+        search,
+        this.choiceBox,
+        h('div', 'pcs-pick-sub', 'Order - drag a row to move it'),
+        h('div', 'pcs-pick-hint', this.hint()),
+        this.orderBox,
+        foot
+      );
+      root.addEventListener('keydown', (e) => {
+        if (NAV_KEYS.includes(e.key)) e.stopPropagation(); // the arrows move inside the picker, not from cell to cell
+      });
+      this.render();
+    }
+
+    /** what the list means, in a line under its heading */
+    hint() {
+      if (this.slots) return 'One key for each ConfigKey action of the rule, in the order of those actions';
+      if (this.byAction) return 'The alarms of the rule, in this order - a ConfigKey action keeps its key';
+      return 'One ConfigKey alarm for each key, in this order';
+    }
+
+    render() {
+      this.renderChoices();
+      this.renderItems();
+      const n = this.items.length;
+      this.note.textContent = this.slots
+        ? `${this.items.filter((x) => x.v).length} of ${n} key(s)`
+        : this.byAction
+        ? `${n} action(s)`
+        : `${n} key(s)`;
+    }
+
+    /** every slot has its key: nothing more can be added (HST keys) */
+    full() {
+      return this.slots && this.items.every((x) => x.v);
+    }
+
+    renderChoices() {
+      const box = this.choiceBox;
+      box.textContent = '';
+      const counts = new Map();
+      for (const item of this.items) counts.set(item.v, (counts.get(item.v) || 0) + 1);
+      this.shown = this.choices.filter((c) => !this.query || c.toLowerCase().includes(this.query));
+      this.hot = Math.min(this.hot, Math.max(0, this.shown.length - 1));
+      const full = this.full();
+      this.shown.forEach((choice, i) => {
+        const row = h('div', 'pcs-pick-opt');
+        if (full) row.classList.add('pcs-off');
+        if (this.query && i === this.hot) row.classList.add('pcs-hot');
+        row.append(h('span', 'pcs-pick-name', choice));
+        if (counts.has(choice)) row.append(h('span', 'pcs-pick-count', `\u00d7${counts.get(choice)}`));
+        row.addEventListener('click', () => this.add(choice));
+        box.append(row);
+      });
+      if (!this.shown.length) {
+        let why = 'No match';
+        if (!this.choices.length) {
+          why = this.byAction ? 'No actions - AlarmIdMapping.xml was not found' : 'The List Workflow table has no keys';
+        }
+        box.append(h('div', 'pcs-pick-none', why));
+      }
+    }
+
+    renderItems() {
+      const box = this.orderBox;
+      box.textContent = '';
+      const known = new Set(this.choices);
+      this.items.forEach((item, i) => {
+        const row = h('div', 'pcs-pick-item');
+        row.draggable = true;
+        const name = h('span', 'pcs-pick-name', item.v || (this.byAction ? '(no action)' : '(no key yet)'));
+        if (!item.v) {
+          name.classList.add('pcs-pick-empty');
+        } else if (this.choices.length && !known.has(item.v)) {
+          row.classList.add('pcs-pick-unknown'); // the file has it, the list of choices does not: kept until taken out
+          row.title = this.byAction ? 'Not in AlarmIdMapping.xml' : 'Not in the List Workflow table';
+        }
+        const remove = h('span', 'pcs-pick-x material-icons', 'close');
+        remove.title = this.slots ? 'Empty this slot' : 'Take it out';
+        remove.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.remove(i);
+        });
+        row.append(h('span', 'pcs-pick-grip material-icons', 'drag_indicator'), h('span', 'pcs-pick-num', `${i + 1}.`), name, remove);
+        this.wireDrag(row, i);
+        box.append(row);
+      });
+      if (!this.items.length) box.append(h('div', 'pcs-pick-none', 'Nothing picked - click a choice above'));
+    }
+
+    add(value) {
+      if (this.slots) {
+        const slot = this.items.findIndex((x) => !x.v);
+        if (slot < 0) return;
+        this.items[slot].v = value;
+      } else {
+        this.items.push(this.byAction ? { v: value, from: null } : { v: value });
+      }
+      this.render();
+      this.search.focus();
+    }
+
+    remove(index) {
+      if (this.slots) this.items[index].v = '';
+      else this.items.splice(index, 1);
+      this.render();
+    }
+
+    /** put the item at ``from`` in front of the one at ``to`` (``to`` counts the list as it is before the move) */
+    move(from, to) {
+      if (to === from || to === from + 1) return;
+      const [item] = this.items.splice(from, 1);
+      this.items.splice(to > from ? to - 1 : to, 0, item);
+      this.render();
+    }
+
+    wireDrag(row, index) {
+      row.addEventListener('dragstart', (e) => {
+        this.dragFrom = index;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(index));
+        setTimeout(() => row.classList.add('pcs-dragging'), 0);
+      });
+      row.addEventListener('dragover', (e) => {
+        if (this.dragFrom == null) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const box = row.getBoundingClientRect();
+        this.dropAt = index + (e.clientY > box.top + box.height / 2 ? 1 : 0);
+        this.markDrop();
+      });
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.finishDrag(true);
+      });
+      row.addEventListener('dragend', () => this.finishDrag(false));
+    }
+
+    /** a line where the dragged row would land */
+    markDrop() {
+      const rows = this.orderBox.children;
+      for (const row of rows) row.classList.remove('pcs-drop-before', 'pcs-drop-after');
+      if (this.dropAt == null || !rows.length) return;
+      if (this.dropAt < this.items.length) rows[this.dropAt].classList.add('pcs-drop-before');
+      else rows[this.items.length - 1].classList.add('pcs-drop-after');
+    }
+
+    finishDrag(dropped) {
+      const from = this.dragFrom;
+      const to = this.dropAt;
+      this.dragFrom = this.dropAt = null;
+      if (dropped && from != null && to != null) this.move(from, to);
+      else this.renderItems();
+    }
+
+    onSearchKey(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation(); // (not the grid's: Enter there would end the edit and move down)
+        if (!this.query) {
+          this.params.stopEditing(); // nothing to look for: Enter is "done"
+          return;
+        }
+        const choice = this.shown[this.hot];
+        if (choice !== undefined) this.add(choice);
+        this.search.value = '';
+        this.query = '';
+        this.hot = 0;
+        this.renderChoices();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        const n = this.shown.length;
+        if (!n) return;
+        this.hot = (this.hot + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+        this.renderChoices();
+        const hot = this.choiceBox.querySelector('.pcs-hot');
+        if (hot) hot.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }
+  S.PickerEditor = PickerEditor;
 
   // ---------------------------------------------------------------- DOM listeners (capture phase)
   document.addEventListener(
@@ -470,7 +856,7 @@
       }
 
       const t = e.target;
-      if (isTextInput(t)) return; // native Ctrl+C / V / X / Z in cell editors, dialogs, text boxes
+      if (isTextInput(t) || S.picking) return; // native Ctrl+C / V / X / Z in cell editors, dialogs, text boxes - and a picker keeps its keys
       const key = keyOf(t);
 
       if (m && !e.altKey) {
@@ -526,7 +912,7 @@
   document.addEventListener(
     'paste',
     (e) => {
-      if (isTextInput(e.target)) return;
+      if (isTextInput(e.target) || S.picking) return;
       const key = keyOf(e.target) || S.active;
       if (!key) return;
       const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';

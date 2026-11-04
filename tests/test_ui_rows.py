@@ -8,8 +8,16 @@ from pcs_die_file import duplicates as dup
 from pcs_die_file import validation as rv
 from pcs_die_file.model import READ_ONLY_FIELDS
 from services import utcnow
+from services.program_bins import UNIT_DAYS
 from ui.common import STATIC
-from ui.pcs_die_file_page import column_defs, program_status, validation_notice, validation_status
+from ui.pcs_die_file_page import (
+    UNIT_TAB,
+    column_defs,
+    program_status,
+    unit_status,
+    validation_notice,
+    validation_status,
+)
 from ui.tasks_page import FILTERS, detail_lines, summary_text, task_rows
 from ui.workers_page import summary_text as workers_summary
 from ui.workers_page import worker_rows
@@ -134,8 +142,19 @@ def test_times_are_shown_in_local_time(services):
 
 # ------------------------------------------------------------------------------------------ the pcs_die_file page
 def test_the_program_status_is_the_name_and_the_number_of_bins_only():
-    assert program_status("EMRA1X3B13F2633", 21848) == "program 'EMRA1X3B13F2633': 21848 bin(s) queried"
-    assert program_status("X", 0) == "program 'X': 0 bin(s) queried"
+    assert program_status("EMRA1X3B13F2633", 21848) == "TP 'EMRA1X3B13F2633': 21848 bin(s) queried"
+    assert program_status("X", 0) == "TP 'X': 0 bin(s) queried"
+
+
+def test_the_unit_level_status_is_the_name_the_number_of_bins_and_the_window():
+    assert unit_status("EMRA1X3B13F2633", 412) == f"TP 'EMRA1X3B13F2633': 412 unit level bin(s) in the last {UNIT_DAYS} days"
+    assert unit_status("X", 0) == f"TP 'X': 0 unit level bin(s) in the last {UNIT_DAYS} days"
+
+
+def test_the_unit_level_tab_has_the_name_that_was_asked_for():
+    assert UNIT_DAYS == 60
+    assert UNIT_TAB == "Missing bins based unit level data lasted 60 days"
+    assert UNIT_TAB != "Missing Bins"  # (the tab next to it keeps its name: show_tab tells them apart by it)
 
 
 def test_the_validation_status_counts_errors_and_warnings():
@@ -153,6 +172,9 @@ def test_the_validation_status_counts_missing_bins_too():
     assert validation_status(rv.CheckResult(text="", ok=True, missing=[1, 2, 3])) == "Validation: OK, 3 bin(s) missing  (0.0s)"
     both = rv.CheckResult(text="", ok=True, duplicates=[duplicate], missing=[1])
     assert validation_status(both) == "Validation: OK, 1 warning(s), 1 bin(s) missing  (0.0s)"
+    units = rv.CheckResult(text="", ok=True, missing=[1], unit_missing=[7, 8])
+    assert validation_status(units) == "Validation: OK, 1 bin(s) missing, 2 unit level bin(s) missing  (0.0s)"
+    assert validation_status(rv.CheckResult(text="", ok=True, unit_missing=[7])) == "Validation: OK, 1 unit level bin(s) missing  (0.0s)"
 
 
 def test_the_validate_button_tells_what_it_found():
@@ -167,6 +189,10 @@ def test_the_validate_button_tells_what_it_found():
     both = rv.CheckResult(text="", ok=True, duplicates=[duplicate], missing=[5])
     assert validation_notice(both) == (
         "No errors found - 1 warning(s), see the Warning tab; 1 bin(s) missing, see the Missing Bins tab.", "warning")
+    units = rv.CheckResult(text="", ok=True, missing=[5], unit_missing=[7, 8])
+    assert validation_notice(units) == (
+        f"No errors found - 1 bin(s) missing, see the Missing Bins tab; 2 unit level bin(s) missing, see the {UNIT_TAB} tab.",
+        "warning")
 
 
 def test_the_rule_grid_ends_with_the_read_only_note_column_and_the_trash_icon():

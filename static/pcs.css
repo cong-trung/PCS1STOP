@@ -162,7 +162,7 @@ body {
   padding: 0 8px;
 }
 
-/* a long message (the Program lookup's) is cut short with "..." - it must not squeeze the other texts of the bar */
+/* a long message (a TP lookup's) is cut short with "..." - it must not squeeze the other texts of the bar */
 .pcs-status > * {
   flex-shrink: 0;
   white-space: nowrap;
@@ -299,4 +299,220 @@ body {
 /* toolbar buttons that open the Tasks / Workers pages */
 .pcs-toolbar a.q-btn {
   text-decoration: none;
+}
+
+/* ---- picker: the popup of the Action / Alarm Config Key cells (PickerEditor in pcs_grid.js) -------------------- */
+.pcs-pick {
+  width: 360px;
+  max-width: 94vw;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: #fff;
+  color: var(--pcs-ink);
+  border: 1px solid var(--pcs-teal);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.pcs-pick-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pcs-pick-title {
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--pcs-teal);
+}
+
+.pcs-pick-note {
+  color: #6b7478;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pcs-pick-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4a5459;
+}
+
+.pcs-pick-hint {
+  margin-top: -2px;
+  font-size: 12px;
+  color: #6b7478;
+}
+
+.pcs-pick-search {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--pcs-line);
+  border-radius: 3px;
+  outline: none;
+  font: inherit;
+}
+
+.pcs-pick-search:focus {
+  border-color: var(--pcs-teal);
+  box-shadow: 0 0 0 1px var(--pcs-teal);
+}
+
+.pcs-pick-list {
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--pcs-line);
+  border-radius: 3px;
+}
+
+.pcs-pick-choices {
+  height: 132px; /* a fixed height: the popup must not change size while the search narrows the list */
+}
+
+.pcs-pick-order {
+  min-height: 78px;
+  max-height: 168px;
+  background: #f7fafa;
+}
+
+.pcs-pick-opt,
+.pcs-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 8px;
+}
+
+.pcs-pick-opt {
+  cursor: pointer;
+}
+
+.pcs-pick-opt:hover,
+.pcs-pick-opt.pcs-hot {
+  background: rgba(15, 125, 134, 0.14);
+}
+
+.pcs-pick-opt.pcs-off {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pcs-pick-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pcs-pick-count {
+  font-weight: 700;
+  color: var(--pcs-teal);
+}
+
+.pcs-pick-none {
+  padding: 6px 8px;
+  font-style: italic;
+  color: #6b7478;
+}
+
+.pcs-pick-item {
+  background: #fff;
+  border-bottom: 1px solid #eef1f2;
+  cursor: grab;
+  user-select: none;
+}
+
+.pcs-pick-item:last-child {
+  border-bottom: 0;
+}
+
+.pcs-pick-item:hover {
+  background: #eef7f8;
+}
+
+.pcs-pick-item.pcs-dragging {
+  opacity: 0.4;
+}
+
+.pcs-pick-item.pcs-drop-before {
+  box-shadow: inset 0 2px 0 var(--pcs-teal);
+}
+
+.pcs-pick-item.pcs-drop-after {
+  box-shadow: inset 0 -2px 0 var(--pcs-teal);
+}
+
+.pcs-pick-grip {
+  font-size: 18px;
+  color: #8a9499;
+}
+
+.pcs-pick-num {
+  min-width: 20px;
+  text-align: right;
+  color: #6b7478;
+}
+
+.pcs-pick-empty {
+  font-style: italic;
+  color: #8a9499;
+}
+
+/* in the file but not among the choices (an action the alarm map lacks, a key the List Workflow table lacks) */
+.pcs-pick-unknown .pcs-pick-name {
+  color: #a35a00;
+}
+
+.pcs-pick-x {
+  font-size: 18px;
+  color: #7b868b;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.pcs-pick-x:hover {
+  color: #c62828;
+  background: rgba(198, 40, 40, 0.14);
+}
+
+.pcs-pick-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.pcs-pick-btn {
+  height: 28px;
+  padding: 0 14px;
+  border: 1px solid var(--pcs-line);
+  border-radius: 3px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pcs-pick-btn:hover {
+  background: #eef7f8;
+}
+
+.pcs-pick-apply {
+  border-color: var(--pcs-teal);
+  background: var(--pcs-teal);
+  font-weight: 600;
+  color: #fff;
+}
+
+.pcs-pick-apply:hover {
+  background: var(--pcs-teal-hover);
 }

@@ -7,18 +7,29 @@ and delete rows (trash icon) -> Save downloads the edited XML.
 The pcs_die_file is checked again a moment after every change; Save stays disabled while the check reports errors.
 The check also has a warning step: an XOFYBIN rule whose bins lie inside another rule's bins (``pcs_die_file.duplicates``)
 gets a yellow row, a read-only Note ("Duplicate of <rule>") and an entry in the Warning tab.  Warnings never block Save.
-And once a program has been looked up (see the Program box below) the bins in its CSV that no rule has
-(``pcs_die_file.missing_bins``) are listed in the Missing Bins tab - information only, it never blocks Save either.
+And once a TP has been looked up (see the TP Name box below) the bins in its CSV that no rule has
+(``pcs_die_file.missing_bins``) are listed in the Missing Bins tab - and the bins its units had in the last UNIT_DAYS days
+in the tab next to it.  That is information only, it never blocks Save either.
 
 The workflow paths are always checked, nobody has to ask: when a pcs_die_file is opened, when a path is added or changed,
 and when the Product box changes, every path that has not been checked yet goes to a PC2 worker as one ``check_path``
 task.  The task payload is the Path plus the Product box value (SST / HST); the worker's answer shows in the read-only
 Check column.  The answers are information only - they never block Save.
 
-The Program box (toolbar) takes the name of a test program.  Once it has been left alone for PROGRAM_DELAY seconds
-(10 - every keystroke starts the wait again) its value is recorded and ``ProgramBinsService`` looks the program's bins up
-in Oracle and saves PROGRAM_NAME + BIN_NUMBER as a CSV in the temp folder.  The status bar at the bottom shows how far it
-got.  The Program box never changes the open pcs_die_file; its bins are only compared with the rules.
+The Action and Alarm Config Key cells of the XOFYBIN grid are picked, not typed: a popup (``PickerEditor`` in pcs_grid.js)
+with a search box and the choices - the Actions of AlarmIdMapping.xml, the Keys of the List Workflow table - above the
+picked ones, which are dragged into order.  The Product box says what is picked (``pcs_die_file.flow``): HST the actions,
+and the keys of the ConfigKey actions among them, in the order of those actions; SST only the keys, its action is always
+ConfigKey.  The browser sends the list (``pcs_flow``) and ``on_flow`` gives the rule exactly those alarms, in one undo step.
+
+The TP Name box (toolbar) takes the name of a test program (TP).  Once it has been left alone for PROGRAM_DELAY seconds
+(10 - every keystroke starts the wait again) its value is recorded and ``ProgramBinsService`` looks the TP's bins up
+in Oracle and saves PROGRAM_NAME + BIN_NUMBER as a CSV in the temp folder.  The bins its units had (a much bigger query)
+are looked up at the same time by a timer of their own - it must not hold up the countdown - and saved as a second CSV.
+The status bar at the bottom shows how far each got.  The two TP status labels and bars (the TP's own bins, the bins of its
+units) move together: every keystroke empties both and both count down, both say "querying" when the wait is over, and what a
+lookup of the name before reports while you type again stays out of them.  The TP Name box never changes the open
+pcs_die_file; the bins are only compared with the rules.
 """
 
 from __future__ import annotations
@@ -33,9 +44,11 @@ from pathlib import Path
 from nicegui import events, run, ui
 
 from config import PRODUCTS, ConfigError, Settings
+from pcs_die_file import flow as fl
 from pcs_die_file import validation as rv
 from pcs_die_file.model import (
     ADD_ROW_TABLES,
+    ALARM_COLUMNS,
     COLUMNS,
     DELETE_ROW_TABLES,
     TABLES,
@@ -47,6 +60,7 @@ from pcs_die_file.model import (
 )
 from services import ProgramBinsError, Services
 from services import path_checks as pc
+from services.program_bins import UNIT_DAYS
 
 from .common import TEAL, add_assets, notify
 
@@ -54,8 +68,10 @@ log = logging.getLogger("pcs.ui")
 
 #: seconds the pcs_die_file has to stay untouched before it is checked again
 RECHECK_DELAY = 0.8
-#: seconds the Program box has to stay untouched before its value is recorded and looked up in Oracle
+#: seconds the TP Name box has to stay untouched before its value is recorded and looked up in Oracle
 PROGRAM_DELAY = 10.0
+#: what the two TP status labels say while no TP is waiting or being looked up: the TP's own bins, the bins of its units
+IDLE_STATUS = ("TP Status", "TP Unit Status")
 #: seconds between two looks at the path-check tasks while some are unfinished
 PATH_POLL_SECONDS = 1.5
 #: seconds to wait before the paths are sent again after the queue (database) could not be reached: grows with every
@@ -79,6 +95,13 @@ CHECK_CLASS_RULES = (
     '"pcs-chk-warn": p => window.pcs.checkKind(p.value) === "warn", '
     '"pcs-chk-wait": p => window.pcs.checkKind(p.value) === "wait"}'
 )
+#: the Action and Alarm Config Key cells of a rule open the picker of pcs_grid.js (a popup under the cell, see
+#: PickerEditor there) instead of a text box
+PICKER_OPTIONS = {
+    ":cellEditor": "window.pcs.PickerEditor",
+    "cellEditorPopup": True,
+    "cellEditorPopupPosition": "under",
+}
 #: per-column AG Grid options (flex = share of the free width)
 COLUMN_OPTIONS: dict[str, dict[str, dict]] = {
     "workflow": {
@@ -100,8 +123,8 @@ COLUMN_OPTIONS: dict[str, dict[str, dict]] = {
         "y": {"width": 70, "minWidth": 50},
         "rule_name": {"flex": 2.5, "minWidth": 170},
         "clear_scope": {"flex": 1.5, "minWidth": 110},
-        "action": {"flex": 1.5, "minWidth": 110},
-        "alarm_config_key": {"flex": 2.5, "minWidth": 160},
+        "action": {"flex": 1.5, "minWidth": 110, **PICKER_OPTIONS},
+        "alarm_config_key": {"flex": 2.5, "minWidth": 160, **PICKER_OPTIONS},
         "comment": {"flex": 2, "minWidth": 140},
         "bin_or_token": {"flex": 2, "minWidth": 130},
         "error": {"flex": 3.5, "minWidth": 220},
@@ -143,8 +166,15 @@ def column_defs(table: str) -> list[dict]:
     return defs
 
 
-#: what the Missing Bins tab says before there is a pcs_die_file or a program to compare
-MISSING_HINT = "Open a pcs_die_file and type a program name in the Program box: the bins of that program that no rule has are listed here."
+#: the tab of the bins the TP's units had in the last UNIT_DAYS days (the wording is the one asked for)
+UNIT_TAB = f"Missing bins based unit level data last {UNIT_DAYS} days"
+#: what the Missing Bins tab says before there is a pcs_die_file or a TP to compare
+MISSING_HINT = "Open a pcs_die_file and type a TP name in the TP Name box: the bins of that TP that no rule has are listed here."
+#: ... and what the unit level tab says
+UNIT_HINT = (
+    "Open a pcs_die_file and type a TP name in the TP Name box: "
+    f"the bins its units had in the last {UNIT_DAYS} days that no rule has are listed here."
+)
 
 
 def validation_status(res: rv.CheckResult) -> str:
@@ -154,6 +184,8 @@ def validation_status(res: rv.CheckResult) -> str:
         status += f", {res.n_warnings} warning(s)"
     if res.n_missing:
         status += f", {res.n_missing} bin(s) missing"
+    if res.n_unit_missing:
+        status += f", {res.n_unit_missing} unit level bin(s) missing"
     return f"{status}  ({res.seconds:.1f}s)"
 
 
@@ -166,14 +198,32 @@ def validation_notice(res: rv.CheckResult) -> tuple[str, str]:
         found.append(f"{res.n_warnings} warning(s), see the Warning tab")
     if res.n_missing:
         found.append(f"{res.n_missing} bin(s) missing, see the Missing Bins tab")
+    if res.n_unit_missing:
+        found.append(f"{res.n_unit_missing} unit level bin(s) missing, see the {UNIT_TAB} tab")
     if found:
         return "No errors found - " + "; ".join(found) + ".", "warning"
     return "No errors found.", "positive"
 
 
 def program_status(program: str, n_bins: int) -> str:
-    """Status bar text of a finished Program lookup: the name and how many bins Oracle sent - no folder, no time."""
-    return f"program '{program}': {n_bins} bin(s) queried"
+    """Status bar text of a finished TP lookup: the name and how many bins Oracle sent - no folder, no time."""
+    return f"TP '{program}': {n_bins} bin(s) queried"
+
+
+def unit_status(program: str, n_bins: int) -> str:
+    """Status bar text of a finished unit level lookup: the name and how many different bins its units had."""
+    return f"TP '{program}': {n_bins} unit level bin(s) in the last {UNIT_DAYS} days"
+
+
+def querying_status(program: str, units: bool) -> str:
+    """Status bar text of a running lookup: the TP's own bins, or with ``units`` the bins its units had."""
+    return f"TP '{program}': querying {'unit level data' if units else 'Oracle'} ..."
+
+
+def countdown_status(left: float) -> tuple[str, str]:
+    """Status bar texts (TP, TP unit level) while the TP Name box waits ``left`` seconds to be looked up: both count down."""
+    seconds = math.ceil(left)
+    return f"TP: query in {seconds} s ...", f"TP Unit: query in {seconds} s ..."
 
 
 class PcsDieFilePage:
@@ -189,7 +239,7 @@ class PcsDieFilePage:
         self.check: rv.CheckResult | None = None  # the last finished check ...
         self.checked_doc: PcsDieFileDoc | None = None  # ... of this document ...
         self.checked_rev = -1  # ... as it was in this revision ...
-        self.checked_seq = -1  # ... and with this program (see program_seq)
+        self.checked_seq = -1  # ... and with these TP bins (see program_seq)
         self.recheck_at: float | None = (
             None  # monotonic time at which the automatic re-check is due
         )
@@ -209,13 +259,16 @@ class PcsDieFilePage:
             0  # times in a row the queue could not be reached when the paths were sent
         )
         self.report_paths = False  # True until the checks of an upload / product change have been reported
-        # the Program box (see the module docstring)
+        # the TP Name box (see the module docstring)
         self.program = ""  # the recorded value: what the box held after PROGRAM_DELAY seconds of rest
         self.program_at: float | None = (
             None  # monotonic time at which the box's value is due to be recorded
         )
+        self.unit_due: str | None = None  # the recorded value, until the unit level timer has picked it up
         self.program_csv: Path | None = None  # the CSV of the last good lookup: what the Missing Bins check reads
-        self.program_seq = 0  # changes whenever program_csv does, so a check knows its answer is about an older program
+        self.unit_csv: Path | None = None  # the CSV of the last good unit level lookup: what the unit level tab reads
+        self.program_seq = 0  # changes whenever program_csv or unit_csv does, so a check knows its answer is about an older TP
+        self.actions_sent: list[str] | None = None  # the Actions of the alarm map as the browser has them (see sync_actions)
         self.grids: dict[str, ui.aggrid] = {}
         self.needs_doc: list = []
 
@@ -224,6 +277,7 @@ class PcsDieFilePage:
         ui.page_title("PCS Checker")
         ui.colors(primary=TEAL)
         add_assets("pcs.css", "pcs_grid.js")
+        ui.add_body_html(f"<script>window.pcs.product = {json.dumps(self.product)};</script>")
         with ui.column().classes("pcs-root"):
             self._toolbar()
             self._path_row()
@@ -232,6 +286,7 @@ class PcsDieFilePage:
             self._rule_tabs()
             self._status_bar()
         ui.on("pcs_bulk", self.on_bulk)
+        ui.on("pcs_flow", self.on_flow)
         ui.on("pcs_add_row", self.on_add_row)
         ui.on("pcs_delete_row", self.on_delete_row)
         ui.on("pcs_undo", lambda: self.undo())
@@ -244,6 +299,7 @@ class PcsDieFilePage:
         ui.timer(0.3, self.recheck_tick)
         ui.timer(0.5, self.path_tick)
         ui.timer(0.5, self.program_tick)
+        ui.timer(0.5, self.unit_tick)
         self.refresh_buttons()
 
     def _toolbar(self) -> None:
@@ -297,11 +353,11 @@ class PcsDieFilePage:
                 "blue-grey-8",
             ).props("href=/workers target=_blank")
             self.program_input = (
-                ui.input(label="Program", on_change=self.on_program)
+                ui.input(label="TP Name", on_change=self.on_program)
                 .props("dense outlined clearable")
                 .classes("pcs-program")
                 .tooltip(
-                    "Test program name - its bins are looked up in Oracle "
+                    "Test program (TP) name - its bins and the bins of its units are looked up in Oracle "
                     f"{PROGRAM_DELAY:.0f} s after you stop typing"
                 )
             )
@@ -315,7 +371,7 @@ class PcsDieFilePage:
                 .props("dense outlined options-dense")
                 .classes("pcs-product")
                 .tooltip(
-                    "Product: SST or HST - sent to the workers with every path check"
+                    "Product: SST or HST - sent to the workers with every path check, and what the Action / Alarm Config Key pickers offer"
                 )
             )
 
@@ -376,6 +432,7 @@ class PcsDieFilePage:
             '"pcs-row-warn": p => !!p.data && p.data.error === "OK" && !!p.data.note, '
             '"pcs-row-ok": p => !!p.data && p.data.error === "OK" && !p.data.note}',
             "stopEditingWhenCellsLoseFocus": True,
+            ":popupParent": "document.body",  # the pickers are taller than a short grid: let them overlap the page
             "rowHeight": 28,
             "headerHeight": 30,
             "tooltipShowDelay": 500,
@@ -436,6 +493,9 @@ class PcsDieFilePage:
                 with ui.tab("Missing Bins"):
                     self.miss_badge = ui.badge("0", color="blue-grey-7").props("floating")
                     self.miss_badge.set_visibility(False)
+                with ui.tab(UNIT_TAB):
+                    self.unit_badge = ui.badge("0", color="blue-grey-7").props("floating")
+                    self.unit_badge.set_visibility(False)
             # All panes stay mounted (a Quasar tab panel would detach the grid from the page while hidden,
             # and the server's updates - undo, validation - would then miss it).
             with ui.element("div").classes("pcs-panels w-full"):
@@ -458,12 +518,17 @@ class PcsDieFilePage:
                 with self.miss_pane:
                     self.miss_text = ui.label(MISSING_HINT).classes("pcs-errtext")
                 self.miss_pane.set_visibility(False)
+                self.unit_pane = ui.element("div").classes("w-full h-full")
+                with self.unit_pane:
+                    self.unit_text = ui.label(UNIT_HINT).classes("pcs-errtext")
+                self.unit_pane.set_visibility(False)
 
     def show_tab(self, name: str) -> None:
         self.rule_pane.set_visibility(name == "Rule")
         self.err_pane.set_visibility(name == "Error")
         self.warn_pane.set_visibility(name == "Warning")
         self.miss_pane.set_visibility(name == "Missing Bins")
+        self.unit_pane.set_visibility(name == UNIT_TAB)
 
     def _status_bar(self) -> None:
         bar = {"value": 0, "show_value": False}
@@ -480,10 +545,18 @@ class PcsDieFilePage:
                 .props("size=10px rounded color=white track-color=teal-9")
                 .classes("w-24")
             )
-            self.program_label = ui.label("Program Status").classes("pcs-program-status")
+            self.program_label = ui.label(IDLE_STATUS[0]).classes("pcs-program-status")
             with self.program_label:
                 ui.tooltip().bind_text_from(self.program_label, "text")
             self.program_bar = (
+                ui.linear_progress(**bar)
+                .props("size=10px rounded color=white track-color=teal-9")
+                .classes("w-24")
+            )
+            self.unit_label = ui.label(IDLE_STATUS[1]).classes("pcs-program-status")
+            with self.unit_label:
+                ui.tooltip().bind_text_from(self.unit_label, "text")
+            self.unit_bar = (
                 ui.linear_progress(**bar)
                 .props("size=10px rounded color=white track-color=teal-9")
                 .classes("w-24")
@@ -524,8 +597,9 @@ class PcsDieFilePage:
 
     def on_product(self, e: events.ValueChangeEventArguments) -> None:
         """Remember the chosen product (SST / HST).  A check is about one product, so the open pcs_die_file's paths are
-        checked again for the new one."""
+        checked again for the new one.  The pickers of the rule grid follow the product too (pcs.setProduct)."""
         self.product = e.value
+        ui.run_javascript(f"pcs.setProduct({json.dumps(self.product)})")
         try:
             self.cfg.update(product=e.value)
         except (OSError, ConfigError) as ex:
@@ -546,15 +620,24 @@ class PcsDieFilePage:
             bar.set_value(1)
 
     def push(self, updates: list[CellUpdate]) -> None:
-        if updates:
-            ui.run_javascript(
-                "pcs.apply({})".format(
-                    json.dumps(
-                        [[u.table, u.row_id, u.field, u.value] for u in updates],
-                        ensure_ascii=False,
-                    )
-                )
+        if not updates:
+            return
+        rows = [[u.table, u.row_id, u.field, u.value] for u in updates]
+        if self.doc is not None:  # the hidden _flow of a rule follows its alarm cells (see PcsDieFileDoc.flow)
+            alarms = dict.fromkeys(
+                (u.table, u.row_id) for u in updates if u.table == "xofy" and u.field in ALARM_COLUMNS
             )
+            for table, row_id in alarms:
+                rows.append([table, row_id, "_flow", [list(step) for step in self.doc.flow(table, row_id) or []]])
+        ui.run_javascript("pcs.apply({})".format(json.dumps(rows, ensure_ascii=False)))
+
+    def sync_actions(self, cfg: Settings) -> None:
+        """Give the browser the Actions of the alarm map (what the Action picker offers) when they are not the ones it
+        has: after a pcs_die_file is opened, and when a check finds another map in config.json."""
+        names = fl.actions_of(cfg.alarm_map)
+        if names != self.actions_sent:
+            self.actions_sent = names
+            ui.run_javascript(f"pcs.setActions({json.dumps(names)})")
 
     def push_rows(self, res: EditResult, *, focus: bool = False) -> None:
         """Rows the model added / took out (Add row, Delete, and Undo / Redo of them) -> the grids."""
@@ -695,7 +778,7 @@ class PcsDieFilePage:
 
     # ------------------------------------------------------------------------------------- validation
     def is_stale(self) -> bool:
-        """True when the open pcs_die_file - or the program it is compared with - has changed since the last finished
+        """True when the open pcs_die_file - or the TP bins it is compared with - has changed since the last finished
         check."""
         return self.doc is not None and (
             self.checked_doc is not self.doc
@@ -721,7 +804,9 @@ class PcsDieFilePage:
             if doc is None:
                 return
             cfg = self.current_settings()
-            rev, seq, csv_path = doc.revision, self.program_seq, self.program_csv
+            self.sync_actions(cfg)
+            rev, seq = doc.revision, self.program_seq
+            csv_path, unit_csv = self.program_csv, self.unit_csv
             self.set_progress(self.val_bar, True)
             self.val_label.set_text("Validating ...")
             try:
@@ -734,6 +819,7 @@ class PcsDieFilePage:
                     cfg.bin_digit_exceptions,
                     doc.bin_rules(),
                     csv_path,
+                    unit_csv,
                 )
             finally:
                 self.set_progress(self.val_bar, False)
@@ -741,7 +827,7 @@ class PcsDieFilePage:
                 return
             if (
                 doc.revision != rev or self.program_seq != seq
-            ):  # edited / another program meanwhile: the answer is about an older state
+            ):  # edited / another TP meanwhile: the answer is about an older state
                 self.val_label.set_text("Validation: pending ...")
                 self.val_bar.set_value(0)
                 self.recheck_at = time.monotonic() + 0.2
@@ -764,6 +850,9 @@ class PcsDieFilePage:
             self.miss_text.set_text(res.missing_text)
             self.miss_badge.set_text(str(res.n_missing))
             self.miss_badge.set_visibility(res.n_missing > 0)
+            self.unit_text.set_text(res.unit_missing_text)
+            self.unit_badge.set_text(str(res.n_unit_missing))
+            self.unit_badge.set_visibility(res.n_unit_missing > 0)
             self.val_label.set_text(validation_status(res))
             self.refresh_buttons()
 
@@ -884,95 +973,129 @@ class PcsDieFilePage:
                 else "warning",
             )
 
-    # ------------------------------------------------------------------------------------- program bins
+    # ------------------------------------------------------------------------------------- TP bins
     def on_program(self, e: events.ValueChangeEventArguments) -> None:
-        """The Program box changed: its value is recorded (and looked up in Oracle) once it has been left alone for
-        PROGRAM_DELAY seconds - every keystroke starts the wait again."""
+        """The TP Name box changed: its value is recorded (and looked up in Oracle) once it has been left alone for
+        PROGRAM_DELAY seconds - every keystroke starts the wait again.  Both TP status labels and bars start over with it
+        (they count down together), so neither keeps what the lookup of the name before said."""
         if (e.value or "").strip():
             self.program_at = time.monotonic() + PROGRAM_DELAY
+            self.reset_status(countdown_status(PROGRAM_DELAY))
             return
         # emptied: nothing to wait for, nothing to look up
-        self.program_at, self.program = None, ""
-        self.set_progress(self.program_bar, False)
-        self.program_bar.set_value(0)
-        self.program_label.set_text("Program Status")
-        self.set_program_csv(None)
+        self.program_at, self.unit_due, self.program = None, None, ""
+        self.reset_status(IDLE_STATUS)
+        self.set_bins_csv(None)
+        self.set_bins_csv(None, units=True)
 
-    def set_program_csv(self, path: Path | None) -> None:
-        """The CSV the Missing Bins check compares the pcs_die_file with (None: no program).  The check runs again at
-        once - with no pcs_die_file open the tab just says what it is waiting for."""
-        self.program_csv, self.program_seq = path, self.program_seq + 1
+    def set_status_texts(self, texts: tuple[str, str]) -> None:
+        """Put the texts (TP, TP unit level) in the two TP status labels."""
+        self.program_label.set_text(texts[0])
+        self.unit_label.set_text(texts[1])
+
+    def reset_status(self, texts: tuple[str, str]) -> None:
+        """Both TP status bars empty and both labels saying ``texts`` - always the two together, so they never show two
+        different moments."""
+        for bar in (self.program_bar, self.unit_bar):
+            self.set_progress(bar, False)
+            bar.set_value(0)
+        self.set_status_texts(texts)
+
+    def set_bins_csv(self, path: Path | None, *, units: bool = False) -> None:
+        """The CSV the Missing Bins check compares the pcs_die_file with - with ``units``, the CSV of the unit level tab
+        (None: no TP).  The check runs again at once - with no pcs_die_file open the tab just says what it is waiting for."""
+        if units:
+            self.unit_csv = path
+        else:
+            self.program_csv = path
+        self.program_seq += 1
         self.recheck_at = time.monotonic()
         if self.doc is None:
-            self.miss_badge.set_visibility(False)
-            self.miss_text.set_text(
-                MISSING_HINT
-                if path is None
-                else f"Open a pcs_die_file to compare it with the bins of program '{self.program}'."
+            badge, text, hint, bins = (
+                (self.unit_badge, self.unit_text, UNIT_HINT, f"the bins the units of TP '{self.program}' had")
+                if units
+                else (self.miss_badge, self.miss_text, MISSING_HINT, f"the bins of TP '{self.program}'")
             )
+            badge.set_visibility(False)
+            text.set_text(hint if path is None else f"Open a pcs_die_file to compare it with {bins}.")
 
     async def program_tick(self) -> None:
-        """Timer: count down the rest the Program box still needs, then record its value and look it up."""
+        """Timer: count down the rest the TP Name box still needs, then record its value and look it up."""
         if self.program_at is None:
             return
         left = self.program_at - time.monotonic()
         if left > 0:
-            self.program_label.set_text(f"program: query in {math.ceil(left)} s ...")
+            self.set_status_texts(countdown_status(left))
             return
         self.program_at = None
         await self.lookup_program()
 
     async def lookup_program(self) -> None:
-        """Record the Program box's value and look its bins up in Oracle (in a thread: the login and the query take a few
-        seconds).  The answer goes to the status bar; the bins go to a CSV file in the temp folder."""
+        """Record the TP Name box's value and look the TP's bins up in Oracle.  The lookup of the bins its units had starts
+        at the same moment, in the timer of its own (``unit_tick``) - its status says so right away, so both TP status
+        labels switch together."""
         value = (self.program_input.value or "").strip()
         self.program = value
-        log.info("program name recorded: %r", value)
-        self.set_progress(self.program_bar, True)
-        self.program_label.set_text(f"program '{value}': querying Oracle ...")
+        log.info("TP name recorded: %r", value)
+        self.unit_due = value
+        self.show_status(self.unit_label, self.unit_bar, querying_status(value, True), running=True)
+        await self.lookup_bins(value)
+
+    async def unit_tick(self) -> None:
+        """Timer: look the recorded TP up in the unit level data.  It has a timer of its own because that query takes far
+        longer than the TP's own bins and must not hold up the countdown of the TP Name box."""
+        value, self.unit_due = self.unit_due, None
+        if value is not None:
+            await self.lookup_bins(value, units=True)
+
+    async def lookup_bins(self, value: str, *, units: bool = False) -> None:
+        """Look ``value`` up in Oracle - the bins of the TP itself, or with ``units`` the bins its units had - in a thread
+        (the login and the query take a few seconds, the unit level query much longer).  The answer goes to the status
+        bar; the bins go to a CSV file in the temp folder."""
+        service = self.services.program_bins
+        label, bar = (self.unit_label, self.unit_bar) if units else (self.program_label, self.program_bar)
+        what = "unit level bins" if units else "bins"
+        self.show_status(label, bar, querying_status(value, units), running=True)
         found, error = None, ""
         try:
-            found = await run.io_bound(self.services.program_bins.query, value)
+            found = await run.io_bound(service.query_units if units else service.query, value)
         except ProgramBinsError as ex:
             error = str(ex)
         except Exception as ex:  # noqa: BLE001
-            log.exception("program %r: lookup crashed", value)
+            log.exception("TP %r: %s lookup crashed", value, what)
             error = f"{type(ex).__name__}: {ex}"
         if self.program != value:
-            return  # the box was emptied meanwhile: its reset stands
-        self.set_progress(self.program_bar, False)
+            return  # the box was emptied (its reset stands) or another TP was recorded meanwhile
         if found is None:
-            log.warning("program %r: lookup failed: %s", value, error)
-            self.set_program_csv(None)  # (the bins of the program before are not those of this name)
-            text = f"program '{value}': {error}"
-            self.show_program(text)
+            log.warning("TP %r: %s lookup failed: %s", value, what, error)
+            self.set_bins_csv(None, units=units)  # (the bins of the TP before are not those of this name)
+            text = f"TP '{value}': {error}"
+            self.show_status(label, bar, text)
             notify(text, "negative")
             return
         n = len(found.bins)
-        log.info(
-            "program %r: %d bin(s) queried, saved to %s (%.1fs)",
-            value,
-            n,
-            found.path,
-            found.seconds,
-        )
-        self.set_program_csv(found.path)
-        text = program_status(value, n)
-        self.show_program(text)
+        log.info("TP %r: %d %s queried, saved to %s (%.1fs)", value, n, what, found.path, found.seconds)
+        self.set_bins_csv(found.path, units=units)
+        text = (unit_status if units else program_status)(value, n)
+        self.show_status(label, bar, text)
         if n:
             notify(text, "positive")
         else:
-            notify(f"program '{value}': no bins found - check the name.", "warning")
+            nothing = f"no unit level data found in the last {UNIT_DAYS} days" if units else "no bins found"
+            notify(f"TP '{value}': {nothing} - check the name.", "warning")
         if found.renamed:  # the usual file was open in Excel or the like
             notify(
                 f"The usual CSV is open in another program - saved as {found.path.name}",
                 "warning",
             )
 
-    def show_program(self, text: str) -> None:
-        """Put the outcome of a lookup in the status bar - unless an edit made meanwhile is counting down there."""
+    def show_status(self, label: ui.label, bar: ui.linear_progress, text: str, *, running: bool = False) -> None:
+        """Put the state of a lookup in its status label and bar (``running``: the bar moves, else it is full) - unless an
+        edit made meanwhile is counting down: the countdown owns both TP status labels and bars, so what the lookup of the
+        name before says now stays out of them (its bins still go to their CSV, and a toast says how it went)."""
         if self.program_at is None:
-            self.program_label.set_text(text)
+            self.set_progress(bar, running)
+            label.set_text(text)
 
     # ------------------------------------------------------------------------------------- editing
     def toggle_edit(self) -> None:
@@ -1011,6 +1134,8 @@ class PcsDieFilePage:
         table = a.get("table")
         if table not in TABLES:
             return
+        wanted = a.get("cells", [])
+        cells = [c for c in wanted if not self.locked(table, str(c["field"]))]
         res = self.doc.apply_edits(
             [
                 CellEdit(
@@ -1019,9 +1144,10 @@ class PcsDieFilePage:
                     str(c["field"]),
                     "" if c.get("value") is None else str(c["value"]),
                 )
-                for c in a.get("cells", [])
+                for c in cells
             ]
         )
+        res.skipped_readonly += len(wanted) - len(cells)
         self.push(res.updates)
         parts = (
             [f"{res.applied} cell(s) changed"] if res.applied else ["Nothing changed"]
@@ -1029,6 +1155,67 @@ class PcsDieFilePage:
         if res.skipped_readonly:
             parts.append(f"{res.skipped_readonly} read-only skipped")
         notify(", ".join(parts), "positive" if res.applied else "info")
+        if res.applied:
+            self.changed()
+
+    def locked(self, table: str, field: str) -> bool:
+        """True for a cell the product keeps out of the text edits (paste, cut, Delete): in SST the action of a rule is
+        always ConfigKey."""
+        return table == "xofy" and field == fl.ACTION_FIELD and self.product == fl.SST
+
+    async def on_flow(self, e: events.GenericEventArguments) -> None:
+        """A picker of the rule grid (the Action or the Alarm Config Key cell) was closed with another list: the rule gets
+        exactly the alarms that list makes (``pcs_die_file.flow`` says how), in one undo step."""
+        a = e.args
+        doc = self.doc
+        if doc is None or self.loading():
+            return
+        if not self.edit_mode:
+            notify("Edit mode is off - press Edit to change cells.", "warning")
+            return
+        table, row_id = a.get("table"), str(a.get("id"))
+        items = a.get("items")
+        steps = doc.flow(table, row_id)
+        if steps is None:
+            notify("That rule has no alarms to edit.", "warning")
+            return
+        base = a.get("base")  # the alarms the picker was built from
+        if isinstance(base, list):
+            try:
+                current = [(str(x), str(y)) for x, y in base] == steps
+            except (TypeError, ValueError):
+                current = False
+            if not current:  # the rule changed since the picker was opened: its list may not fit any more
+                notify("That rule changed after the picker was opened - open it again.", "warning")
+                ui.run_javascript(
+                    "pcs.apply({})".format(json.dumps([[table, row_id, "_flow", [list(step) for step in steps]]]))
+                )
+                return
+        pick = fl.apply_pick(
+            steps,
+            a.get("field"),
+            items if isinstance(items, list) else [],
+            self.product,
+            actions=fl.actions_of(self.current_settings().alarm_map),
+            keys=doc.workflow_keys(),
+        )
+        if pick.steps is None:
+            notify(pick.error, "warning")
+            return
+        if pick.replaced:  # SST: the rule has other actions than ConfigKey - do not throw them away unasked
+            rule = next((r["rule_name"] for r in doc.rows(table) if r["id"] == row_id), "") or row_id
+            if not await self.confirm(
+                f"In SST every action is ConfigKey. Rule {rule} has {', '.join(pick.replaced)} - "
+                "replace it with ConfigKey?",
+                "Replace",
+            ):
+                return
+            if self.doc is not doc or self.busy:  # another pcs_die_file was opened while the question was open
+                return
+        res = doc.set_flow(table, row_id, pick.steps)
+        self.push(res.updates)
+        for message in res.errors:
+            notify(message, "negative")
         if res.applied:
             self.changed()
 

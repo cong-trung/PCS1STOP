@@ -9,7 +9,8 @@ completely inside another rule's bins is reported as a *warning* - a note on its
 Warnings never make the check fail (``CheckResult.ok``), so the pcs_die_file can still be saved.
 
 The last step is the bins of the queried test program (``pcs_die_file.missing_bins``): the ones no rule has are listed in
-the Missing Bins tab.  That is information too - it never makes the check fail either.
+the Missing Bins tab.  The same check runs a second time on the bins the program's units had (the unit level data), for
+the tab next to it.  That is information too - it never makes the check fail either.
 """
 from __future__ import annotations
 
@@ -41,6 +42,9 @@ class CheckResult:
     missing: list[int] = field(default_factory=list)  # bin numbers of the program that no rule has (an FB before its DBs)
     n_program_bins: int = 0                           # distinct bin numbers the program has (0: nothing was checked)
     missing_text: str = ""                            # what the Missing Bins tab shows
+    unit_missing: list[int] = field(default_factory=list)  # the same for the bins the program's units had
+    n_unit_bins: int = 0                                    # distinct bin numbers its units had (0: nothing was checked)
+    unit_missing_text: str = ""                             # what the unit level tab shows
 
     @property
     def n_warnings(self) -> int:
@@ -51,6 +55,11 @@ class CheckResult:
     def n_missing(self) -> int:
         """How many bin numbers of the program no rule has (what the Missing Bins tab lists)."""
         return len(self.missing)
+
+    @property
+    def n_unit_missing(self) -> int:
+        """How many bin numbers of its units no rule has (what the unit level tab lists)."""
+        return len(self.unit_missing)
 
 
 _NODE_TAG = re.compile(r"<\s*([A-Za-z_][\w.\-]*)")
@@ -121,25 +130,30 @@ def _find_duplicates(bin_rules: list[tuple[str, str, str]] | None, warnings: lis
         return []
 
 
-def _missing_text(found: mb.ProgramCoverage | None, error: str) -> str:
-    """The Missing Bins tab: how many bins of the program no rule has, then those bin numbers, one per line."""
+def _missing_text(found: mb.ProgramCoverage | None, error: str, *, units: bool = False) -> str:
+    """The Missing Bins tab: how many bins of the TP no rule has, then those bin numbers, one per line.  ``units``: the tab
+    of the bins its units had (the unit level data) instead of the bins the TP defines."""
     if error:
-        return f"The bins of the program were not checked: {error}"
+        return f"The {'unit level bins' if units else 'bins'} of the TP were not checked: {error}"
     if found is None:
-        return "Type a program name in the Program box: the bins of that program that no rule has are listed here."
-    who = ", ".join(f"'{name}'" for name in found.programs) or "(no name)"
+        if units:
+            return "Type a TP name in the TP Name box: the bins its units had that no rule has are listed here."
+        return "Type a TP name in the TP Name box: the bins of that TP that no rule has are listed here."
+    who = "TP " + (", ".join(f"'{name}'" for name in found.programs) or "(no name)") + (" (unit level data)" if units else "")
     if not found.checked:
         head = (
-            f"program {who}: the CSV has no bin number to check."
+            f"{who}: the CSV has no bin number to check."
             if found.programs
-            else "The CSV has no bin number to check."  # (header only: the program has no bins)
+            else "The CSV has no bin number to check."  # (header only: the TP has no bins)
         )
     elif found.missing:
-        head = f"program {who}: {len(found.missing)} of {found.checked} bin(s) are in no rule."
+        head = f"{who}: {len(found.missing)} of {found.checked} bin(s) are in no rule."
     else:
-        head = f"program {who}: all {found.checked} bin(s) are in a rule."
-    lines = [
-        head,
+        head = f"{who}: all {found.checked} bin(s) are in a rule."
+    lines = [head]
+    if units:
+        lines.append("Every unit counts with its most detailed bin: the data bin, else the functional bin, else the interface bin.")
+    lines += [
         "A bin is in a rule when the Bins of the rules - without their [ ] parts - cover all of it: 9103 is 91030000-91039999.",
         "LowYield rules do not count.  Sorted by bin: an FB comes before its DBs.",
     ]
@@ -149,8 +163,8 @@ def _missing_text(found: mb.ProgramCoverage | None, error: str) -> str:
 
 
 def _check_missing(bin_rules: list[tuple[str, str, str]] | None, program_csv: str | Path | None,
-                   warnings: list[str]) -> tuple[mb.ProgramCoverage | None, str]:
-    """(the bins of the program against the rules, why that could not be told - '' when it could)."""
+                   warnings: list[str], step: str = "Missing bins") -> tuple[mb.ProgramCoverage | None, str]:
+    """(the bins of the CSV against the rules, why that could not be told - '' when it could)."""
     if bin_rules is None or program_csv is None:
         return None, ""
     try:
@@ -159,30 +173,36 @@ def _check_missing(bin_rules: list[tuple[str, str, str]] | None, program_csv: st
         return None, str(e)
     except Exception as e:  # noqa: BLE001 - an information step must never take the whole check down
         message = f"{type(e).__name__}: {e}"
-        warnings.append(f"Missing bins were not checked: {message}")
+        warnings.append(f"{step} were not checked: {message}")
         return None, message
 
 
 def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workflow_check: bool = True,
               bin_digit_exceptions: dict | None = None,
               bin_rules: Iterable[tuple[str, str, str]] | None = None,
-              program_csv: str | Path | None = None) -> CheckResult:
+              program_csv: str | Path | None = None,
+              unit_csv: str | Path | None = None) -> CheckResult:
     """Run pcs_die_file_checker on ``xml_text``.  The paths/options come from the caller (config.json), none live here.
 
     ``bin_rules``: (row id, RuleName, Bins) of every XOFYBIN rule (``PcsDieFileDoc.bin_rules()``) - the duplicate-bins
     step runs on them after the checker; None = that step is left out.
-    ``program_csv``: the CSV the Program box saved (PROGRAM_NAME, BIN_NUMBER) - its bins that none of those rules has go
-    to the Missing Bins tab; None = that step is left out."""
+    ``program_csv``: the CSV the TP Name box saved (PROGRAM_NAME, BIN_NUMBER) - its bins that none of those rules has go
+    to the Missing Bins tab; None = that step is left out.
+    ``unit_csv``: the same for the CSV of the bins the TP's units had - the unit level tab."""
     t0 = time.perf_counter()
     warnings: list[str] = []
     rules = None if bin_rules is None else list(bin_rules)
     found = _find_duplicates(rules, warnings)
     coverage, why = _check_missing(rules, program_csv, warnings)
+    unit_coverage, unit_why = _check_missing(rules, unit_csv, warnings, "Unit level missing bins")
     extra = {"duplicates": found, "notes": {item.rule.key: _note(item) for item in found},
              "warning_text": _warning_text(found, filename),
              "missing": list(coverage.missing) if coverage else [],
              "n_program_bins": coverage.checked if coverage else 0,
-             "missing_text": _missing_text(coverage, why)}
+             "missing_text": _missing_text(coverage, why),
+             "unit_missing": list(unit_coverage.missing) if unit_coverage else [],
+             "n_unit_bins": unit_coverage.checked if unit_coverage else 0,
+             "unit_missing_text": _missing_text(unit_coverage, unit_why, units=True)}
     try:
         amap = rc.AlarmIdMap.load(alarm_map_path) if alarm_map_path else None
         if amap is None:
