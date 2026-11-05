@@ -45,7 +45,7 @@ def build_services(settings: Settings) -> Services:
         assigned_timeout=settings.assigned_timeout,
         running_timeout=settings.running_timeout,
         api_token=settings.api_token,
-        program_bins=ProgramBinsService(settings.oracle_dir, settings.oracle_alias),
+        program_bins=ProgramBinsService(settings.oracle_dir, settings.oracle_aliases),
     )
 
 
@@ -168,7 +168,7 @@ def main(argv: list[str] | None = None) -> None:
         log.info("alarm map: %s", settings.alarm_map)
     oracle_db = services.program_bins.module_path
     if oracle_db.is_file():
-        log.info("oracle module: %s (alias %s)", oracle_db, services.program_bins.alias)
+        log.info("oracle module: %s (databases %s)", oracle_db, ", ".join(services.program_bins.aliases))
     else:
         log.warning(
             "oracle module not found (%s) - the TP Name box cannot look up bins; set oracle.portable_dir in config.json",

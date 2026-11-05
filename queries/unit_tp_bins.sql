@@ -1,5 +1,6 @@
 -- Bins of the units of a test program (TP): what the "unit level data" Missing Bins tab compares with the rules.
--- Run by ProgramBinsService.query_units() (services/program_bins.py) with two bind variables:
+-- Run by ProgramBinsService.query_units() (services/program_bins.py) with two bind variables, once on every database of
+-- oracle.alias (config.json: VN.ARIES and SVC.ARIES) - the text must run on all of them; the bins are merged, each once:
 --   programname  the TP name from the TP Name box (upper / lower case does not matter)
 --   min_ww       first work week to look at = the work week of "today minus 60 days" (UNIT_DAYS in program_bins.py)
 -- The unit level query (unit_tp_query) of the old WinForms app, cut down to the bins it needs (see Speed below), so

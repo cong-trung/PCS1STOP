@@ -6,7 +6,7 @@
       "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com", "websocket": false,
                     "compression": false },
       "ui":       { "product": "SST" },
-      "oracle":   { "portable_dir": "pcs_oracle_portable", "alias": "VN.ARIES" },
+      "oracle":   { "portable_dir": "pcs_oracle_portable", "alias": ["VN.ARIES", "SVC.ARIES"] },
       "database": { "path": "data/queue.db" },
       "tasks":    { "monitor_interval_s": 60, "worker_offline_after_s": 60, "assigned_timeout_s": 300,
                     "running_timeout_s": 3600, "ui_refresh_s": 5, "api_token": "" }
@@ -41,7 +41,10 @@ ui.product                  SST or HST - what the Product box shows and what the
 oracle.portable_dir         the folder with oracle_db.py, the Oracle client and the TNS files (the pcs_oracle_portable set):
                             what the TP Name box looks test programs up with (restart needed).  Missing = the app still
                             starts, and a lookup says what is missing
-oracle.alias                the TNS alias of the database the lookup logs in to (restart needed)
+oracle.alias                the TNS alias of the database the lookup logs in to - or a list of aliases, as shipped
+                            ["VN.ARIES", "SVC.ARIES"]: every lookup then asks each database in turn and merges the
+                            answers, a bin that two of them have counts once.  A database that cannot be reached fails
+                            the lookup (restart needed)
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
 tasks.worker_offline_after_s  a worker not heard of for this long is OFFLINE
@@ -99,7 +102,7 @@ DEFAULTS: dict[str, dict[str, Any]] = {
         "compression": False,
     },  # (see above)
     "ui": {"product": PRODUCTS[0]},
-    "oracle": {"portable_dir": "pcs_oracle_portable", "alias": "VN.ARIES"},
+    "oracle": {"portable_dir": "pcs_oracle_portable", "alias": ["VN.ARIES", "SVC.ARIES"]},
     "database": {"path": "data/queue.db"},
     "tasks": {
         "monitor_interval_s": 60,
@@ -154,6 +157,11 @@ def _merge(dst: dict, src: dict) -> None:
             _merge(dst[k], v)
         else:
             dst[k] = v
+
+
+def _as_list(value: Any) -> list:
+    """``oracle.alias`` is one alias or a list of them: either way a list."""
+    return value if isinstance(value, list) else [value]
 
 
 def is_site_address(url: str) -> bool:
@@ -224,8 +232,13 @@ def _validate(data: dict, where: str) -> None:
         )
     if not expect("oracle", "portable_dir", (str,), "a path string").strip():
         raise ConfigError(f'{where}: "oracle.portable_dir" must not be empty')
-    if not expect("oracle", "alias", (str,), "a TNS alias like VN.ARIES").strip():
-        raise ConfigError(f'{where}: "oracle.alias" must not be empty')
+    alias = data["oracle"]["alias"]
+    names = _as_list(alias)
+    if not names or not all(isinstance(name, str) and name.strip() for name in names):
+        raise ConfigError(
+            f'{where}: "oracle.alias" must be a TNS alias like VN.ARIES, or a list of them (none empty), '
+            f"got {json.dumps(alias)}"
+        )
     if not expect("database", "path", (str,), "a path string").strip():
         raise ConfigError(f'{where}: "database.path" must not be empty')
     for key in _SECONDS:
@@ -399,9 +412,10 @@ class Settings:
         return resolve_path(self.data["oracle"]["portable_dir"], self.path.parent)
 
     @property
-    def oracle_alias(self) -> str:
-        """The TNS alias the TP lookups log in to."""
-        return self.data["oracle"]["alias"].strip()
+    def oracle_aliases(self) -> tuple[str, ...]:
+        """The TNS aliases of the databases the TP lookups ask, in the order they are asked (each once)."""
+        names = _as_list(self.data["oracle"]["alias"])
+        return tuple(dict.fromkeys(name.strip() for name in names))
 
     @property
     def database_path(self) -> Path:

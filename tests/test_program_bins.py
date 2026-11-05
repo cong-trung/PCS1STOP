@@ -17,7 +17,7 @@ from services.program_bins import (
     BINS_SQL,
     COPIES,
     CSV_HEADER,
-    DEFAULT_ALIAS,
+    DEFAULT_ALIASES,
     DEFAULT_PORTABLE_DIR,
     DEFAULT_QUERY_DIR,
     UNIT_DAYS,
@@ -28,6 +28,9 @@ from services.program_bins import (
     csv_name,
     work_week,
 )
+
+FIRST, SECOND = "VN.ARIES", "SVC.ARIES"  # the databases of the shipped config, in the order they are asked
+BOTH = (FIRST, SECOND)
 
 COLUMNS = ["PROGRAM_NAME", "BIN_DESCRIPTION", "BIN_NUMBER"]  # what queries/program_bins.sql returns
 ROWS = [
@@ -59,6 +62,9 @@ CLOSED = []
 ERROR = @ERROR@
 ANSWER = (@COLUMNS@, @ROWS@)
 UNIT_ANSWER = (@UNIT_COLUMNS@, @UNIT_ROWS@)
+ANSWERS = {}  # alias -> the ANSWER of a database that has other rows than the rest
+UNIT_ANSWERS = {}  # the same for the unit level query
+BROKEN = {}  # alias -> the error that database raises
 
 
 class QueryResult(NamedTuple):
@@ -74,8 +80,11 @@ class Cursor:
         EXECUTED.append((self.alias, sql, dict(binds or {})))
         if ERROR is not None:
             raise RuntimeError(ERROR)
-        self.description = [(name, None) for name in UNIT_ANSWER[0]]
-        self.rows = list(UNIT_ANSWER[1])
+        if self.alias in BROKEN:
+            raise RuntimeError(BROKEN[self.alias])
+        columns, rows = UNIT_ANSWERS.get(self.alias, UNIT_ANSWER)
+        self.description = [(name, None) for name in columns]
+        self.rows = list(rows)
 
     def fetchall(self):
         return self.rows
@@ -107,7 +116,9 @@ class OracleDataAccess:
         CALLS.append((self.alias, query, parameter_name, parameter_value))
         if ERROR is not None:
             raise RuntimeError(ERROR)
-        return QueryResult(*ANSWER)
+        if self.alias in BROKEN:
+            raise RuntimeError(BROKEN[self.alias])
+        return QueryResult(*ANSWERS.get(self.alias, ANSWER))
 '''
 
 
@@ -138,11 +149,12 @@ def queries(tmp_path: Path, sql: str | None = UNIT_SQL_TEXT, bins_sql: str | Non
 
 
 def service(tmp_path: Path, **kwargs) -> ProgramBinsService:
-    alias = kwargs.pop("alias", DEFAULT_ALIAS)
+    """A service on one database (``aliases=BOTH``: on both) over a stand-in that answers the same on every alias."""
+    aliases = kwargs.pop("aliases", FIRST)
     sql, bins_sql = kwargs.pop("sql", UNIT_SQL_TEXT), kwargs.pop("bins_sql", BINS_SQL_TEXT)
     clock = kwargs.pop("clock", None)
     extra = {} if clock is None else {"clock": clock}
-    return ProgramBinsService(portable(tmp_path, **kwargs), alias, tmp_path / "out", queries(tmp_path, sql, bins_sql), **extra)
+    return ProgramBinsService(portable(tmp_path, **kwargs), aliases, tmp_path / "out", queries(tmp_path, sql, bins_sql), **extra)
 
 
 def read_csv(path: Path) -> list[list[str]]:
@@ -165,7 +177,7 @@ def test_the_bins_are_saved_as_program_name_and_bin_number(tmp_path):
 
 
 def test_the_name_is_a_bind_variable_and_the_alias_is_the_configured_one(tmp_path):
-    lookup = service(tmp_path, alias="PG.ARIES")
+    lookup = service(tmp_path, aliases="PG.ARIES")
     hostile = "X' OR '1'='1"
     lookup.query(hostile)
     ((alias, sql, name, value),) = lookup._oracle_db.CALLS
@@ -261,15 +273,15 @@ def test_an_oracle_error_becomes_one_line_with_its_hint_and_writes_nothing(tmp_p
     with pytest.raises(ProgramBinsError) as caught:
         lookup.query("P")
     assert str(caught.value) == (
-        "RuntimeError: ORA-12154: TNS:could not resolve the connect identifier (tnsnames.ora not found)"
-    )
+        "VN.ARIES: RuntimeError: ORA-12154: TNS:could not resolve the connect identifier (tnsnames.ora not found)"
+    )  # (it starts with the database that raised it)
     assert not (tmp_path / "out").exists()
 
 
 def test_an_error_without_a_known_code_has_no_hint(tmp_path):
     with pytest.raises(ProgramBinsError) as caught:
         service(tmp_path, error="ORA-99999: something new").query("P")
-    assert str(caught.value) == "RuntimeError: ORA-99999: something new"
+    assert str(caught.value) == "VN.ARIES: RuntimeError: ORA-99999: something new"
 
 
 def test_a_folder_that_cannot_be_written_is_reported(tmp_path):
@@ -383,7 +395,7 @@ def test_a_unit_counts_with_its_most_detailed_bin_and_once(tmp_path):
 
 
 def test_the_unit_query_binds_the_name_and_the_first_work_week(tmp_path, clock):
-    lookup = service(tmp_path, alias="PG.ARIES", clock=clock)
+    lookup = service(tmp_path, aliases="PG.ARIES", clock=clock)
     hostile = "X' OR '1'='1"
     lookup.query_units(hostile)
     ((alias, sql, binds),) = lookup._oracle_db.EXECUTED
@@ -470,7 +482,7 @@ def test_an_oracle_error_of_the_unit_query_is_one_line_with_its_hint_and_writes_
     with pytest.raises(ProgramBinsError) as caught:
         lookup.query_units("P")
     assert str(caught.value) == (
-        "RuntimeError: ORA-12154: TNS:could not resolve the connect identifier (tnsnames.ora not found)"
+        "VN.ARIES: RuntimeError: ORA-12154: TNS:could not resolve the connect identifier (tnsnames.ora not found)"
     )
     assert not (tmp_path / "out").exists() and lookup._oracle_db.CLOSED == ["VN.ARIES"]  # (the connection is closed anyway)
 
@@ -504,6 +516,74 @@ def test_a_unit_csv_that_is_open_in_another_program_does_not_fail_the_lookup(tmp
     assert lookup.query("P").path.name == "bins_P.csv"  # (the other CSV is not in its way)
     locked.clear()
     assert lookup.query_units("P").path.name == "unit_bins_P.csv"
+
+
+# --------------------------------------------------------------------------------------- more than one database
+def test_the_databases_may_be_one_name_or_a_list_and_the_default_is_both(tmp_path):
+    assert ProgramBinsService(tmp_path, "PG.ARIES").aliases == ("PG.ARIES",)  # one name is one database, not its letters
+    assert ProgramBinsService(tmp_path, ["VN.ARIES", "SVC.ARIES"]).aliases == BOTH
+    assert ProgramBinsService(tmp_path).aliases == DEFAULT_ALIASES == BOTH
+
+
+def test_every_database_is_asked_and_the_bins_are_merged_once_each(tmp_path):
+    lookup = service(tmp_path, aliases=BOTH, rows=[("P", "A", 9103), ("P", "B", 91030000)])
+    lookup._load().ANSWERS[SECOND] = (COLUMNS, [("P", "B", 91030000), ("P", "C", 9104)])  # one bin both have, one only it has
+    found = lookup.query("P")
+    assert [(alias, name, value) for alias, _, name, value in lookup._oracle_db.CALLS] == [
+        (FIRST, "programname", "P"),
+        (SECOND, "programname", "P"),
+    ]  # one after the other, in the order of the config
+    assert {sql for _, sql, _, _ in lookup._oracle_db.CALLS} == {BINS_SQL_TEXT}  # the same text on both
+    assert found.bins == (("P", 9103), ("P", 91030000), ("P", 9104))  # the first database's rows first, then what only the second has
+    assert read_csv(found.path) == [["PROGRAM_NAME", "BIN_NUMBER"], ["P", "9103"], ["P", "91030000"], ["P", "9104"]]
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [([("P", "A", 1)], []), ([], [("P", "A", 1)])],
+    ids=["only the first has it", "only the second has it"],
+)
+def test_a_tp_that_only_one_database_has_is_found(tmp_path, first, second):
+    lookup = service(tmp_path, aliases=BOTH, rows=first)
+    lookup._load().ANSWERS[SECOND] = (COLUMNS, second)
+    assert lookup.query("P").bins == (("P", 1),)
+
+
+def test_the_unit_level_bins_of_every_database_are_merged_once_each(tmp_path, clock):
+    lookup = service(tmp_path, aliases=BOTH, clock=clock, unit_rows=[("P", 91, 9103, 91030000), ("P", 70, 7006, None)])
+    lookup._load().UNIT_ANSWERS[SECOND] = (UNIT_COLUMNS, [("P", 91, 9103, 91030000.0), ("P", 80, None, None)])
+    found = lookup.query_units("P")
+    binds = {"programname": "P", "min_ww": 202445}
+    assert [(alias, used) for alias, _, used in lookup._oracle_db.EXECUTED] == [(FIRST, binds), (SECOND, binds)]
+    assert lookup._oracle_db.CLOSED == [FIRST, SECOND]  # (each connection is closed again)
+    assert found.bins == (("P", 91030000), ("P", 7006), ("P", 80))  # 91030000.0 of the second database is the bin the first has
+    assert read_csv(found.path)[1:] == [["P", "91030000"], ["P", "7006"], ["P", "80"]]
+
+
+@pytest.mark.parametrize("broken", BOTH)
+def test_a_database_that_fails_fails_the_lookup_and_is_named(tmp_path, broken):
+    """Half of the bins in the CSV would hide the missing ones: no CSV, and the message says which database it was."""
+    lookup = service(tmp_path, aliases=BOTH)
+    lookup._load().BROKEN[broken] = "ORA-12154: TNS:could not resolve\n   the connect identifier"
+    with pytest.raises(ProgramBinsError) as caught:
+        lookup.query("P")
+    assert str(caught.value) == (
+        f"{broken}: RuntimeError: ORA-12154: TNS:could not resolve the connect identifier (tnsnames.ora not found)"
+    )
+    assert [alias for alias, *_ in lookup._oracle_db.CALLS] == list(BOTH[: BOTH.index(broken) + 1])  # none is asked after it
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("broken", BOTH)
+def test_a_database_that_fails_the_unit_lookup_fails_it_and_is_named(tmp_path, broken):
+    lookup = service(tmp_path, aliases=BOTH)
+    lookup._load().BROKEN[broken] = "ORA-01017: invalid username/password"
+    with pytest.raises(ProgramBinsError) as caught:
+        lookup.query_units("P")
+    assert str(caught.value) == f"{broken}: RuntimeError: ORA-01017: invalid username/password"
+    asked = list(BOTH[: BOTH.index(broken) + 1])
+    assert [alias for alias, _, _ in lookup._oracle_db.EXECUTED] == asked and lookup._oracle_db.CLOSED == asked
+    assert not (tmp_path / "out").exists()
 
 
 @pytest.mark.parametrize(
@@ -559,7 +639,7 @@ def test_a_bin_is_written_as_a_whole_number_or_not_at_all(raw, wanted):
 
 
 def test_the_sql_files_of_the_project_have_the_bind_variables_and_the_columns_the_service_uses(tmp_path, clock):
-    lookup = ProgramBinsService(portable(tmp_path), out_dir=tmp_path / "out", clock=clock)  # the queries folder of the project
+    lookup = ProgramBinsService(portable(tmp_path), FIRST, tmp_path / "out", clock=clock)  # the queries folder of the project
     assert lookup.query_dir == DEFAULT_QUERY_DIR
     assert (DEFAULT_QUERY_DIR / BINS_SQL).is_file() and (DEFAULT_QUERY_DIR / UNIT_SQL).is_file()
 
@@ -599,8 +679,9 @@ def test_the_real_oracle_db_has_what_the_service_uses(tmp_path, monkeypatch):
 
     monkeypatch.setattr(oracle.OracleDataAccess, "get_data", answer)  # no login, no query
     found = lookup.query("EMRR1X3B13K2634A")
-    assert calls == [(DEFAULT_ALIAS, lookup._read_sql(BINS_SQL), "programname", "EMRR1X3B13K2634A")]
-    assert [row[1] for row in read_csv(found.path)[1:]] == ["9103", "91030000", "9104"]
+    sql = lookup._read_sql(BINS_SQL)
+    assert calls == [(alias, sql, "programname", "EMRR1X3B13K2634A") for alias in DEFAULT_ALIASES]  # every database, the same text
+    assert [row[1] for row in read_csv(found.path)[1:]] == ["9103", "91030000", "9104"]  # (both answered the same: each bin once)
 
 
 @pytest.mark.skipif(not REAL.is_file(), reason="pcs_oracle_portable is not part of this checkout")
@@ -636,9 +717,9 @@ def test_the_real_oracle_db_opens_the_connection_the_unit_lookup_runs_its_sql_on
 
     monkeypatch.setattr(oracle.OracleDataAccess, "connect", connect)  # no login, no query
     found = lookup.query_units("EMRR1X3B13K2634A")
-    assert opened == [DEFAULT_ALIAS]
-    assert [binds for _, binds in executed] == [{"programname": "EMRR1X3B13K2634A", "min_ww": 202445}]
-    assert [row[1] for row in read_csv(found.path)[1:]] == ["91030000", "91030001", "70060000"]
+    assert opened == list(DEFAULT_ALIASES)
+    assert [binds for _, binds in executed] == [{"programname": "EMRR1X3B13K2634A", "min_ww": 202445}] * len(DEFAULT_ALIASES)
+    assert [row[1] for row in read_csv(found.path)[1:]] == ["91030000", "91030001", "70060000"]  # (each bin once)
 
 
 @pytest.mark.skipif(not REAL.is_file(), reason="pcs_oracle_portable is not part of this checkout")

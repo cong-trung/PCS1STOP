@@ -13,6 +13,11 @@ three columns it returns (PROGRAM_NAME, BIN_NUMBER) and writes them to ``%TEMP%\
 that.  ``query_units(program)`` does the same for the bins the TP's *units* had in the last UNIT_DAYS days
 (``queries/unit_tp_bins.sql``) and writes ``unit_bins_<program>.csv``.  Both block while they log in and query - the second
 for much longer: call them from a thread.
+
+Both run on every database of ``aliases`` (``oracle.alias`` in config.json: VN.ARIES and SVC.ARIES), one after the other, and
+merge the rows: a (PROGRAM_NAME, BIN_NUMBER) that two databases both have is written once, the rows of the first database
+first.  A database that cannot be reached fails the whole lookup - the message names it and nothing is written - because a
+CSV without the bins of one database would hide missing bins.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ import re
 import tempfile
 import threading
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -34,7 +40,8 @@ from .clock import Clock, utcnow
 
 DEFAULT_PORTABLE_DIR = Path(__file__).resolve().parent.parent / "pcs_oracle_portable"
 DEFAULT_QUERY_DIR = Path(__file__).resolve().parent.parent / "queries"
-DEFAULT_ALIAS = "VN.ARIES"
+#: the TNS aliases of the databases a TP is looked up in, in the order they are asked
+DEFAULT_ALIASES = ("VN.ARIES", "SVC.ARIES")
 #: the columns of the CSV, as queries/program_bins.sql names them (it also returns BIN_DESCRIPTION, which is left out)
 CSV_HEADER = ("PROGRAM_NAME", "BIN_NUMBER")
 #: other names a CSV is tried under when its file is open in another program: bins_X_1.csv ... bins_X_5.csv
@@ -62,7 +69,7 @@ class ProgramBins:
     program: str
     bins: tuple[
         tuple[Any, Any], ...
-    ]  # (PROGRAM_NAME, BIN_NUMBER) once each, in the order Oracle sent them: the CSV rows
+    ]  # (PROGRAM_NAME, BIN_NUMBER) once each, in the order Oracle sent them (the first database's rows first): the CSV rows
     path: Path  # the CSV
     seconds: float  # Oracle and file together
     prefix: str = BINS_PREFIX  # which CSV it is: bins_<program>.csv (the TP's own bins) or unit_bins_<program>.csv
@@ -108,13 +115,13 @@ class ProgramBinsService:
     def __init__(
         self,
         portable_dir: str | Path = DEFAULT_PORTABLE_DIR,
-        alias: str = DEFAULT_ALIAS,
+        aliases: str | Iterable[str] = DEFAULT_ALIASES,
         out_dir: str | Path | None = None,
         query_dir: str | Path = DEFAULT_QUERY_DIR,
         clock: Clock = utcnow,
     ) -> None:
         self.portable_dir = Path(portable_dir)
-        self.alias = alias
+        self.aliases = (aliases,) if isinstance(aliases, str) else tuple(aliases)
         self.out_dir = (
             Path(out_dir)
             if out_dir is not None
@@ -133,37 +140,42 @@ class ProgramBinsService:
         return self.portable_dir / "oracle_db.py"
 
     def query(self, program: str) -> ProgramBins:
-        """Look ``program`` up in Oracle and save its bins; ProgramBinsError says what went wrong."""
-        program = program.strip()
+        """Look ``program`` up in every database and save its bins; ProgramBinsError says what went wrong."""
+        program = program.strip().upper()
         if not program:
             raise ProgramBinsError("Enter a TP name.")
         oracle = self._load()
         sql = self._read_sql(BINS_SQL)
         started = time.perf_counter()
-        try:
-            result = oracle.OracleDataAccess(self.alias).get_data(
-                sql, "programname", program
+        found: dict[tuple[Any, Any], None] = {}  # each pair once, whichever database has it
+        for alias in self.aliases:
+            try:
+                result = oracle.OracleDataAccess(alias).get_data(
+                    sql, "programname", program
+                )
+            except Exception as error:
+                raise ProgramBinsError(self._explain(oracle, error, alias)) from error
+            columns = [str(name).upper() for name in result.columns]
+            missing = [name for name in CSV_HEADER if name not in columns]
+            if missing:
+                raise ProgramBinsError(
+                    f"The Oracle query returned {', '.join(map(str, result.columns))} - no {', '.join(missing)}"
+                )
+            keep = [columns.index(name) for name in CSV_HEADER]
+            # the query is a SELECT DISTINCT: a table without the description column must stay one
+            found.update(
+                dict.fromkeys(tuple(row[i] for i in keep) for row in result.rows)
             )
-        except Exception as error:
-            raise ProgramBinsError(self._explain(oracle, error)) from error
-        columns = [str(name).upper() for name in result.columns]
-        missing = [name for name in CSV_HEADER if name not in columns]
-        if missing:
-            raise ProgramBinsError(
-                f"The Oracle query returned {', '.join(map(str, result.columns))} - no {', '.join(missing)}"
-            )
-        keep = [columns.index(name) for name in CSV_HEADER]
-        # the query is a SELECT DISTINCT: a table without the description column must stay one
-        bins = tuple(dict.fromkeys(tuple(row[i] for i in keep) for row in result.rows))
+        bins = tuple(found)
         path = self._save(program, bins)
         return ProgramBins(program, bins, path, time.perf_counter() - started)
 
     def query_units(self, program: str) -> ProgramBins:
-        """Look up the bins the units of ``program`` had in the last UNIT_DAYS days (``queries/unit_tp_bins.sql``) and save
-        them as ``unit_bins_<program>.csv``; ProgramBinsError says what went wrong.  The connection is the one of
-        oracle_db.py; the SQL file may use any of the bind variables ``programname`` and ``min_ww`` (the work week
+        """Look up the bins the units of ``program`` had in the last UNIT_DAYS days (``queries/unit_tp_bins.sql``) in every
+        database and save them as ``unit_bins_<program>.csv``; ProgramBinsError says what went wrong.  The connection is the
+        one of oracle_db.py; the SQL file may use any of the bind variables ``programname`` and ``min_ww`` (the work week
         UNIT_DAYS days ago)."""
-        program = program.strip()
+        program = program.strip().upper()
         if not program:
             raise ProgramBinsError("Enter a TP name.")
         oracle = self._load()
@@ -178,19 +190,22 @@ class ProgramBinsService:
             if re.search(rf":{name}\b", sql, re.IGNORECASE)
         }
         started = time.perf_counter()
-        try:
-            with oracle.OracleDataAccess(
-                self.alias
-            ).connect() as connection:  # get_data() takes one bind variable only
-                cursor = connection.cursor()
-                cursor.execute(sql, binds)
-                columns, rows = (
-                    [column[0] for column in cursor.description],
-                    cursor.fetchall(),
-                )
-        except Exception as error:
-            raise ProgramBinsError(self._explain(oracle, error)) from error
-        bins = self._unit_bins(columns, rows)
+        found: dict[tuple[Any, Any], None] = {}  # each pair once, whichever database has it
+        for alias in self.aliases:
+            try:
+                with oracle.OracleDataAccess(
+                    alias
+                ).connect() as connection:  # get_data() takes one bind variable only
+                    cursor = connection.cursor()
+                    cursor.execute(sql, binds)
+                    columns, rows = (
+                        [column[0] for column in cursor.description],
+                        cursor.fetchall(),
+                    )
+            except Exception as error:
+                raise ProgramBinsError(self._explain(oracle, error, alias)) from error
+            found.update(dict.fromkeys(self._unit_bins(columns, rows)))
+        bins = tuple(found)
         path = self._save(program, bins, UNIT_PREFIX)
         return ProgramBins(
             program, bins, path, time.perf_counter() - started, UNIT_PREFIX
@@ -258,8 +273,9 @@ class ProgramBinsService:
             return self._oracle_db
 
     @staticmethod
-    def _explain(oracle: ModuleType, error: Exception) -> str:
-        """The error as oracle_db.py's own command line puts it: one line, plus its hint for the known Oracle codes."""
+    def _explain(oracle: ModuleType, error: Exception, alias: str) -> str:
+        """The error as oracle_db.py's own command line puts it: one line, plus its hint for the known Oracle codes - after
+        the name of the database that raised it."""
         message = " ".join(str(error).split())
         hint = next(
             (
@@ -269,7 +285,9 @@ class ProgramBinsService:
             ),
             None,
         )
-        return f"{type(error).__name__}: {message}" + (f" ({hint})" if hint else "")
+        return f"{alias}: {type(error).__name__}: {message}" + (
+            f" ({hint})" if hint else ""
+        )
 
     def _save(
         self, program: str, bins: tuple[tuple[Any, Any], ...], prefix: str = BINS_PREFIX

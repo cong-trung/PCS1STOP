@@ -37,7 +37,7 @@ relative to the folder of `config.json`:
 | `server.compression` | `false` (default, as shipped) = the app compresses nothing: NiceGUI gzips its pages and the socket.io engine gzips every polling response of 1 KB or more, and behind IIS, which compresses by itself, that makes two layers. The browser undoes only one, the NiceGUI connection receives binary garbage, drops the session and reconnects for ever - small updates get through, every big one (a pcs_die_file's tables) is lost. `true` = the app compresses (a direct connection without a proxy) |
 | `ui.product` | `SST` or `HST` - the Product box (remembered here): which drive mapping the path checks use, and what the Action / Alarm Config Key pickers of the rule grid offer (see *Action and Alarm Config Key pickers*) |
 | `oracle.portable_dir` | the folder with `oracle_db.py`, the Oracle client and the TNS files - the `pcs_oracle_portable` set the TP Name box looks test programs up with (restart needed). Default `pcs_oracle_portable`. If it is missing the app still starts (the log warns) and a lookup says what is missing. The SQL is not in it: see `queries/` below |
-| `oracle.alias` | the TNS alias the lookup logs in to, default `VN.ARIES` (restart needed) |
+| `oracle.alias` | the TNS alias of the database the lookup logs in to - or a list of aliases, default `["VN.ARIES", "SVC.ARIES"]` (restart needed). With a list, every lookup asks **each** database in turn and merges the answers, a bin that two of them have counts once (see *Databases* under *TP bins*); a database that cannot be reached fails the lookup. A single string (`"VN.ARIES"`) still works: one database |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
 | `tasks.ui_refresh_s` | refresh of the Tasks and Workers pages (5) |
@@ -191,6 +191,14 @@ switch to `querying ...` when the 10 seconds are over, and emptying the box puts
 A lookup of the name before that ends while you type again does not touch them (its bins still go to their CSV and a toast
 says how it went), so the bar never shows the outcome for one name next to the countdown for another.
 
+**Databases.** `oracle.alias` lists the databases a TP is looked up in - `VN.ARIES` and `SVC.ARIES` as shipped. Both lookups
+(the TP's own bins and the bins of its units) run the same SQL on each of them, one after the other, and the rows are merged:
+a `(PROGRAM_NAME, BIN_NUMBER)` that both have is written once, the rows of the first alias first, so a TP that only one of
+the databases knows is found all the same. If a database cannot be reached (login, network, query) the whole lookup fails and
+the message starts with its name, e.g. `TP 'EMRR1X3B13K2634A': SVC.ARIES: DatabaseError: ORA-12170 ...` - a CSV with the bins
+of one database only would hide missing bins, so nothing is written. The SQL files must therefore run on every database of the
+list. Alias order is lookup order; to look in one database only, give `oracle.alias` that one name.
+
 **Where the SQL is.** `pcs_oracle_portable/oracle_db.py` only opens the connection (`OracleDataAccess.connect()`: Kerberos
 login, thick mode) and executes a SQL string (`get_data()`) - there is no SQL in it, so that folder can be moved to another
 project as it is, which then brings its own queries. This app keeps its SQL in the **`queries/`** folder next to `app.py`,
@@ -206,7 +214,7 @@ The files are read at every lookup: edit and save, the next lookup uses the new 
 Developer writes it) is dropped. A bind variable that is no longer in the text is not passed, so a query may be edited
 down. The TP name is always a bind variable, never part of the SQL text. `oracle_db.py` is imported by its path and never
 edited here: replace the folder to update it. Of the three columns `program_bins.sql` returns (`PROGRAM_NAME`,
-`BIN_DESCRIPTION`, `BIN_NUMBER`) the CSV keeps two, each pair once, in the order Oracle sent them:
+`BIN_DESCRIPTION`, `BIN_NUMBER`) the CSV keeps two, each pair once (also when both databases have it), in the order Oracle sent them:
 
 ```
 %TEMP%\pcs1stop_bins\bins_EMRR1X3B13K2634A.csv
@@ -222,15 +230,17 @@ EMRR1X3B13K2634A,91030000
 other than letters, digits, `.`, `_` and `-` becomes `_`.
 
 What PC1 needs (`uv run pcs_oracle_portable\oracle_db.py --sql queries\program_bins.sql --bind programname=<name>` tests
-all of it; without `--sql` it only checks the login, `--sql queries\who.sql` tells how it was done):
+all of it; without `--sql` it only checks the login, `--sql queries\who.sql` tells how it was done; `--alias SVC.ARIES`
+picks the database, `VN.ARIES` if it is left out - test every alias of `oracle.alias`):
 
 * `oracle.portable_dir` with `oracle_client\bin` (the Oracle 11.2 x64 client - hence `oracledb<4`, which `uv sync`
-  installs) and `database_config\` (`TNSNAMES.ORA`, `sqlnet.ora`, `krb5.conf`);
-* a Windows user that has a Kerberos login to the database (`User Id=/`): the lookup uses the identity of the user who
-  runs PC1, not the visitor's.
+  installs) and `database_config\` (`TNSNAMES.ORA`, which must have every alias of `oracle.alias`, `sqlnet.ora`, `krb5.conf`);
+* a Windows user that has a Kerberos login to every one of the databases (`User Id=/`): the lookup uses the identity of the
+  user who runs PC1, not the visitor's.
 
 The app starts without the folder (the log warns), and a lookup then says what is missing. Oracle errors are shown as one
-line, with the hint of `oracle_db.py` where it has one (`ORA-12154`, `ORA-12641`, `DPI-1047`, ...).
+line that starts with the database it came from, with the hint of `oracle_db.py` where it has one (`ORA-12154`, `ORA-12641`,
+`DPI-1047`, ...).
 
 ## Unit level bins (second Missing Bins tab)
 

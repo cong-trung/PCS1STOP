@@ -96,12 +96,13 @@ def test_the_program_lookup_is_wired_from_the_config(tmp_path):
 
     path = tmp_path / "config.json"
     path.write_text(
-        json.dumps({"oracle": {"portable_dir": "ora", "alias": "PG.ARIES"}, "database": {"path": "q.db"}}), encoding="utf-8"
+        json.dumps({"oracle": {"portable_dir": "ora", "alias": ["PG.ARIES", "SVC.ARIES"]}, "database": {"path": "q.db"}}),
+        encoding="utf-8",
     )
     services = pcs_app.build_services(Settings(path))
     try:
         lookup = services.program_bins
-        assert lookup.portable_dir == tmp_path / "ora" and lookup.alias == "PG.ARIES"
+        assert lookup.portable_dir == tmp_path / "ora" and lookup.aliases == ("PG.ARIES", "SVC.ARIES")
         assert lookup.module_path == tmp_path / "ora" / "oracle_db.py"  # (not there: the app still starts, see main())
     finally:
         services.db.dispose()

@@ -126,21 +126,27 @@ def test_the_app_compresses_nothing_unless_asked(tmp_path):
 def test_the_oracle_lookup_defaults_to_the_portable_folder_next_to_the_config(tmp_path):
     settings = Settings(write(tmp_path / "a.json", {}))  # also a config.json written before the setting existed
     assert settings.oracle_dir == tmp_path / "pcs_oracle_portable"
-    assert settings.oracle_alias == "VN.ARIES"
+    assert settings.oracle_aliases == ("VN.ARIES", "SVC.ARIES")
     other = Settings(write(tmp_path / "b.json", {"oracle": {"portable_dir": "tools/oracle", "alias": "  PG.ARIES "}}))
-    assert other.oracle_dir == tmp_path / "tools" / "oracle" and other.oracle_alias == "PG.ARIES"
+    assert other.oracle_dir == tmp_path / "tools" / "oracle" and other.oracle_aliases == ("PG.ARIES",)  # one name: one database
     absolute = tmp_path / "elsewhere" / "oracle"
     assert Settings(write(tmp_path / "c.json", {"oracle": {"portable_dir": str(absolute)}})).oracle_dir == absolute
 
 
+def test_the_oracle_alias_may_be_a_list_of_databases(tmp_path):
+    listed = Settings(write(tmp_path / "a.json", {"oracle": {"alias": [" SVC.ARIES", "VN.ARIES ", "SVC.ARIES"]}}))
+    assert listed.oracle_aliases == ("SVC.ARIES", "VN.ARIES")  # trimmed, asked in this order, each once
+    assert Settings(write(tmp_path / "b.json", {"oracle": {"alias": ["VN.ARIES"]}})).oracle_aliases == ("VN.ARIES",)
+
+
 def test_the_services_default_and_the_config_default_are_the_same_folder():
     """``Services.create()`` without arguments (the tests) and an app whose config.json has no ``oracle`` block must
-    look in the same place."""
+    look in the same place - and ask the same databases."""
     from config import HERE
-    from services.program_bins import DEFAULT_ALIAS, DEFAULT_PORTABLE_DIR
+    from services.program_bins import DEFAULT_ALIASES, DEFAULT_PORTABLE_DIR
 
     assert DEFAULT_PORTABLE_DIR == HERE / Path(DEFAULTS["oracle"]["portable_dir"])
-    assert DEFAULT_ALIAS == DEFAULTS["oracle"]["alias"]
+    assert DEFAULT_ALIASES == tuple(DEFAULTS["oracle"]["alias"])
 
 
 def test_the_shipped_config_can_be_reached_by_the_workers():
@@ -170,6 +176,10 @@ def test_the_shipped_config_can_be_reached_by_the_workers():
         ({"oracle": {"portable_dir": 5}}, "oracle.portable_dir"),
         ({"oracle": {"alias": "  "}}, "oracle.alias"),
         ({"oracle": {"alias": None}}, "oracle.alias"),
+        ({"oracle": {"alias": 5}}, "oracle.alias"),
+        ({"oracle": {"alias": []}}, "oracle.alias"),
+        ({"oracle": {"alias": ["VN.ARIES", " "]}}, "oracle.alias"),
+        ({"oracle": {"alias": ["VN.ARIES", 5]}}, "oracle.alias"),
         ({"server": {"port": 70000}}, "server.port"),
         ({"server": {"public_url": 5}}, "server.public_url"),
         ({"server": {"public_url": "pc1.example.com"}}, "server.public_url"),

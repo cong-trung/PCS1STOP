@@ -41,7 +41,10 @@
   },
   "oracle": {
     "portable_dir": "pcs_oracle_portable",
-    "alias": "VN.ARIES"
+    "alias": [
+      "VN.ARIES",
+      "SVC.ARIES"
+    ]
   },
   "database": {
     "path": "data/queue.db"
