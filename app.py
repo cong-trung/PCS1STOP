@@ -5,7 +5,7 @@
     uv run app.py --config my.json    # use another settings file
 
     /          pcs_die_file editor (upload a pcs_die_file XML -> parse -> edit -> save; the workflow paths are checked by a worker;
-               the TP Name box looks a test program's bins up in Oracle)
+               the TP Name box looks a test program's bins up through PyUber)
     /tasks     every task of the queue            /workers   the PC2 machines
     /api/...   what the workers call (see README.md)
 
@@ -26,8 +26,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from api import install_api
 from config import ConfigError, Settings
 from database import Database, init_db
-from scheduler import MonitorScheduler, install_scheduler
-from services import ProgramBinsService, Services
+from scheduler import DailyScheduler, MonitorScheduler, install_scheduler
+from services import PyUberProgramBinsService, Services
 from ui import register_pages  # our package, not nicegui.ui
 from ui.common import STATIC
 
@@ -45,8 +45,16 @@ def build_services(settings: Settings) -> Services:
         assigned_timeout=settings.assigned_timeout,
         running_timeout=settings.running_timeout,
         api_token=settings.api_token,
-        program_bins=ProgramBinsService(settings.oracle_dir, settings.oracle_aliases),
+        program_bins=PyUberProgramBinsService(settings.program_bins_datasources),
     )
+
+
+def cleanup_scheduler(settings: Settings, services: Services) -> DailyScheduler | None:
+    """The daily deletion of the TP-bin CSVs (``None`` when ``program_bins.cleanup_at`` is empty)."""
+    at = settings.program_bins_cleanup_at
+    if at is None:
+        return None
+    return DailyScheduler(services.program_bins.clean_out_dir, at, name="TP-bin cleanup")
 
 
 class QuietSessionRace(logging.Filter):
@@ -72,6 +80,7 @@ def setup_logging(settings: Settings) -> None:
         handlers=handlers,
         force=True,
     )
+    logging.getLogger("PyUber").setLevel(logging.WARNING)  # PyUber logs SQL at INFO.
     logging.getLogger("uvicorn.error").addFilter(QuietSessionRace())
 
 
@@ -156,6 +165,9 @@ def main(argv: list[str] | None = None) -> None:
     app.add_static_files("/pcs", STATIC)
     register_pages(services, settings)
     install_scheduler(app.on_startup, app.on_shutdown, MonitorScheduler(services.monitor, settings.monitor_interval))
+    cleanup = cleanup_scheduler(settings, services)
+    if cleanup:
+        install_scheduler(app.on_startup, app.on_shutdown, cleanup)
     app.on_shutdown(services.db.dispose)
 
     log.info("task store: %s", settings.database_path)
@@ -166,14 +178,14 @@ def main(argv: list[str] | None = None) -> None:
         )
     else:
         log.info("alarm map: %s", settings.alarm_map)
-    oracle_db = services.program_bins.module_path
-    if oracle_db.is_file():
-        log.info("oracle module: %s (databases %s)", oracle_db, ", ".join(services.program_bins.aliases))
+    log.info(
+        "TP-bin backend: PyUber (datasources %s)",
+        ", ".join(settings.program_bins_datasources),
+    )
+    if cleanup:
+        log.info("TP-bin CSVs in %s are deleted every day at %s", services.program_bins.out_dir, cleanup.at.strftime("%H:%M"))
     else:
-        log.warning(
-            "oracle module not found (%s) - the TP Name box cannot look up bins; set oracle.portable_dir in config.json",
-            oracle_db,
-        )
+        log.info("TP-bin CSVs in %s are never deleted (program_bins.cleanup_at is empty)", services.program_bins.out_dir)
     for level, message in reachability_notes(settings):
         log.log(level, "%s", message)
     configure_transport(settings)

@@ -10,6 +10,7 @@ dependencies = [
     "oracledb<4",
     "polars>=2.0.0",
     "pydantic>=2.0",
+    "pyuber",
     "sqlalchemy>=2.0",
 ]
 
@@ -28,3 +29,6 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::starlette.exceptions.StarletteDeprecationWarning",
 ]
+
+[tool.uv.sources]
+pyuber = { git = "https://github.com/intel-innersource/applications.manufacturing.intel.yield.pyuber" }

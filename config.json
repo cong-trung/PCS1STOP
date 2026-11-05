@@ -37,7 +37,14 @@
     "compression": false
   },
   "ui": {
-    "product": "HST"
+    "product": "SST"
+  },
+  "program_bins": {
+    "datasources": [
+      "VN_PROD_ARIES",
+      "SVC_PROD_ARIES"
+    ],
+    "cleanup_at": "00:00"
   },
   "oracle": {
     "portable_dir": "pcs_oracle_portable",

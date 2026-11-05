@@ -5,7 +5,7 @@ import os
 import re
 import threading
 import time
-from datetime import timedelta
+from datetime import time as time_of_day, timedelta
 from pathlib import Path
 
 import pytest
@@ -80,6 +80,7 @@ def test_update_can_set_the_api_token(tmp_path):
 def test_missing_keys_fall_back_to_the_defaults(tmp_path):
     settings = Settings(write(tmp_path / "config.json", {"server": {"port": 9000}, "tasks": {"ui_refresh_s": 2}}))
     assert settings.port == 9000 and settings.host == "127.0.0.1"
+    assert settings.program_bins_datasources == ("VN_PROD_ARIES", "SVC_PROD_ARIES")
     assert settings.ui_refresh == 2.0
     assert settings.monitor_interval == 60.0
     assert settings.worker_offline_after == timedelta(seconds=60)
@@ -133,20 +134,49 @@ def test_the_oracle_lookup_defaults_to_the_portable_folder_next_to_the_config(tm
     assert Settings(write(tmp_path / "c.json", {"oracle": {"portable_dir": str(absolute)}})).oracle_dir == absolute
 
 
+def test_program_bins_datasources_are_configurable(tmp_path):
+    settings = Settings(
+        write(
+            tmp_path / "config.json",
+            {
+                "program_bins": {
+                    "datasources": [" SVC_PROD_ARIES ", "VN_PROD_ARIES", "SVC_PROD_ARIES"],
+                }
+            },
+        )
+    )
+    assert settings.program_bins_datasources == ("SVC_PROD_ARIES", "VN_PROD_ARIES")
+
+
+def test_the_bins_cleanup_runs_at_midnight_unless_set_otherwise(tmp_path):
+    assert DEFAULTS["program_bins"]["cleanup_at"] == "00:00"
+    assert Settings(write(tmp_path / "a.json", {})).program_bins_cleanup_at == time_of_day(0, 0)  # also a config.json written before the setting existed
+    assert Settings(write(tmp_path / "b.json", {"program_bins": {"datasources": ["VN_PROD_ARIES"]}})).program_bins_cleanup_at == time_of_day(0, 0)
+    for text, expected in (
+        ("03:05", time_of_day(3, 5)),
+        (" 3:05 ", time_of_day(3, 5)),
+        ("0:00", time_of_day(0, 0)),
+        ("23:59", time_of_day(23, 59)),
+        ("", None),  # never
+        ("  ", None),
+    ):
+        path = write(tmp_path / "c.json", {"program_bins": {"cleanup_at": text}})
+        assert Settings(path).program_bins_cleanup_at == expected, text
+
+
 def test_the_oracle_alias_may_be_a_list_of_databases(tmp_path):
     listed = Settings(write(tmp_path / "a.json", {"oracle": {"alias": [" SVC.ARIES", "VN.ARIES ", "SVC.ARIES"]}}))
     assert listed.oracle_aliases == ("SVC.ARIES", "VN.ARIES")  # trimmed, asked in this order, each once
     assert Settings(write(tmp_path / "b.json", {"oracle": {"alias": ["VN.ARIES"]}})).oracle_aliases == ("VN.ARIES",)
 
 
-def test_the_services_default_and_the_config_default_are_the_same_folder():
-    """``Services.create()`` without arguments (the tests) and an app whose config.json has no ``oracle`` block must
-    look in the same place - and ask the same databases."""
-    from config import HERE
-    from services.program_bins import DEFAULT_ALIASES, DEFAULT_PORTABLE_DIR
+def test_the_pyuber_service_and_config_use_the_same_datasources_by_default(db):
+    from services import PyUberProgramBinsService, Services
+    from services.program_bins_pyuber import DEFAULT_DATASOURCES
 
-    assert DEFAULT_PORTABLE_DIR == HERE / Path(DEFAULTS["oracle"]["portable_dir"])
-    assert DEFAULT_ALIASES == tuple(DEFAULTS["oracle"]["alias"])
+    assert DEFAULT_DATASOURCES == tuple(DEFAULTS["program_bins"]["datasources"])
+    assert PyUberProgramBinsService().datasources == DEFAULT_DATASOURCES
+    assert isinstance(Services.create(db).program_bins, PyUberProgramBinsService)
 
 
 def test_the_shipped_config_can_be_reached_by_the_workers():
@@ -180,6 +210,17 @@ def test_the_shipped_config_can_be_reached_by_the_workers():
         ({"oracle": {"alias": []}}, "oracle.alias"),
         ({"oracle": {"alias": ["VN.ARIES", " "]}}, "oracle.alias"),
         ({"oracle": {"alias": ["VN.ARIES", 5]}}, "oracle.alias"),
+        ({"program_bins": {"datasources": []}}, "program_bins.datasources"),
+        ({"program_bins": {"datasources": "VN_PROD_ARIES"}}, "program_bins.datasources"),
+        ({"program_bins": {"datasources": ["VN_PROD_ARIES", " "]}}, "program_bins.datasources"),
+        ({"program_bins": {"cleanup_at": "24:00"}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": "12:60"}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": "noon"}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": "0000"}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": "00:00:00"}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": "00:0"}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": 5}}, "program_bins.cleanup_at"),
+        ({"program_bins": {"cleanup_at": None}}, "program_bins.cleanup_at"),
         ({"server": {"port": 70000}}, "server.port"),
         ({"server": {"public_url": 5}}, "server.public_url"),
         ({"server": {"public_url": "pc1.example.com"}}, "server.public_url"),

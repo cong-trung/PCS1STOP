@@ -15,6 +15,14 @@ class Monitor(Protocol):
     def run_once(self) -> MonitorReport: ...
 
 
+class Scheduler(Protocol):
+    """What ``install_scheduler`` hooks up: ``MonitorScheduler``, ``DailyScheduler``."""
+
+    def start(self) -> None: ...
+
+    async def stop(self) -> None: ...
+
+
 class MonitorScheduler:
     """``monitor.run_once()`` right away and then every ``interval`` seconds, until ``stop()``.
 
@@ -61,7 +69,7 @@ class MonitorScheduler:
 def install_scheduler(
     on_startup: Callable[[Callable[[], Awaitable[None] | None]], object],
     on_shutdown: Callable[[Callable[[], Awaitable[None] | None]], object],
-    scheduler: MonitorScheduler,
+    scheduler: Scheduler,
 ) -> None:
     """Hook ``scheduler`` to an application's startup / shutdown (``app.on_startup`` / ``app.on_shutdown``)."""
 

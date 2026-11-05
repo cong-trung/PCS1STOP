@@ -1,6 +1,6 @@
 """Bins of the queried test program that no XOFYBIN rule has - the "Missing Bins" step of the validation.
 
-The bins come from the CSV the TP Name box saves (``services.program_bins``): two columns, PROGRAM_NAME and BIN_NUMBER.
+The bins come from the CSV the TP Name box saves (``services.program_bins_pyuber``): two columns, PROGRAM_NAME and BIN_NUMBER.
 It is scanned lazily with Polars (``scan_csv``): only those two columns are read, and only when the check collects them.
 The CSV of the bins the TP's units had (the unit level tab) has the same two columns and goes through the same check.
 
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from pcs_die_file.duplicates import DIGITS, SKIPPED_NAME, Range, merge, split_bins
 
-#: the two columns of the CSV (``services.program_bins.CSV_HEADER`` writes them)
+#: the two columns of the CSV (``services.program_bins_common.CSV_HEADER`` writes them)
 PROGRAM_COLUMN, BIN_COLUMN = "PROGRAM_NAME", "BIN_NUMBER"
 #: what a bin number looks like in the CSV: 1 to 8 digits
 BIN_NUMBER = rf"^[0-9]{{1,{DIGITS}}}$"

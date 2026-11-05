@@ -7,7 +7,7 @@ from datetime import timedelta
 from database import Database
 
 from .clock import Clock, utcnow
-from .program_bins import ProgramBinsService
+from .program_bins_pyuber import PyUberProgramBinsService
 from .task_service import TaskService
 from .timeout_monitor import MonitorLimits, TimeoutMonitor
 from .worker_service import WorkerService
@@ -19,7 +19,7 @@ class Services:
     workers: WorkerService
     tasks: TaskService
     monitor: TimeoutMonitor
-    program_bins: ProgramBinsService  # the Program box's Oracle lookup (no database, no clock)
+    program_bins: PyUberProgramBinsService
     api_token: str = ""  # when set, API callers must send it in the X-API-Token header
 
     @classmethod
@@ -31,7 +31,7 @@ class Services:
         assigned_timeout: timedelta = timedelta(minutes=5),
         running_timeout: timedelta = timedelta(minutes=60),
         api_token: str = "",
-        program_bins: ProgramBinsService | None = None,
+        program_bins: PyUberProgramBinsService | None = None,
         clock: Clock = utcnow,
     ) -> Services:
         workers = WorkerService(db, offline_after=offline_after, clock=clock)
@@ -40,6 +40,6 @@ class Services:
             workers=workers,
             tasks=TaskService(db, workers, clock=clock),
             monitor=TimeoutMonitor(db, workers, MonitorLimits(assigned_timeout, running_timeout), clock=clock),
-            program_bins=program_bins or ProgramBinsService(),
+            program_bins=program_bins or PyUberProgramBinsService(),
             api_token=api_token,
         )

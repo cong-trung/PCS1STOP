@@ -24,7 +24,7 @@ ConfigKey.  The browser sends the list (``pcs_flow``) and ``on_flow`` gives the 
 
 The TP Name box (toolbar) takes the name of a test program (TP).  Once it has been left alone for PROGRAM_DELAY seconds
 (10 - every keystroke starts the wait again) its value is recorded and ``ProgramBinsService`` looks the TP's bins up
-in Oracle and saves PROGRAM_NAME + BIN_NUMBER as a CSV in the temp folder.  The bins its units had (a much bigger query)
+in the configured data sources and saves PROGRAM_NAME + BIN_NUMBER as a CSV in the temp folder. The bins its units had (a much bigger query)
 are looked up at the same time by a timer of their own - it must not hold up the countdown - and saved as a second CSV.
 The status bar at the bottom shows how far each got.  The two TP status labels and bars (the TP's own bins, the bins of its
 units) move together: every keystroke empties both and both count down, both say "querying" when the wait is over, and what a
@@ -60,7 +60,7 @@ from pcs_die_file.model import (
 )
 from services import ProgramBinsError, Services
 from services import path_checks as pc
-from services.program_bins import UNIT_DAYS
+from services.program_bins_common import UNIT_DAYS
 
 from .common import TEAL, add_assets, notify
 
@@ -68,7 +68,7 @@ log = logging.getLogger("pcs.ui")
 
 #: seconds the pcs_die_file has to stay untouched before it is checked again
 RECHECK_DELAY = 0.8
-#: seconds the TP Name box has to stay untouched before its value is recorded and looked up in Oracle
+#: seconds the TP Name box has to stay untouched before its value is recorded and looked up
 PROGRAM_DELAY = 10.0
 #: what the two TP status labels say while no TP is waiting or being looked up: the TP's own bins, the bins of its units
 IDLE_STATUS = ("TP Status", "TP Unit Status")
@@ -206,7 +206,7 @@ def validation_notice(res: rv.CheckResult) -> tuple[str, str]:
 
 
 def program_status(program: str, n_bins: int) -> str:
-    """Status bar text of a finished TP lookup: the name and how many bins Oracle sent - no folder, no time."""
+    """Status bar text of a finished TP lookup: the name and how many bins the query returned."""
     return f"TP '{program}': {n_bins} bin(s) queried"
 
 
@@ -217,7 +217,7 @@ def unit_status(program: str, n_bins: int) -> str:
 
 def querying_status(program: str, units: bool) -> str:
     """Status bar text of a running lookup: the TP's own bins, or with ``units`` the bins its units had."""
-    return f"TP '{program}': querying {'unit level data' if units else 'Oracle'} ..."
+    return f"TP '{program}': querying {'unit level data' if units else 'program bins'} ..."
 
 
 def countdown_status(left: float) -> tuple[str, str]:
@@ -357,7 +357,7 @@ class PcsDieFilePage:
                 .props("dense outlined clearable")
                 .classes("pcs-program")
                 .tooltip(
-                    "Test program (TP) name - its bins and the bins of its units are looked up in Oracle "
+                    "Test program (TP) name - its bins and the bins of its units are looked up in the configured data sources "
                     f"{PROGRAM_DELAY:.0f} s after you stop typing"
                 )
             )
@@ -975,7 +975,7 @@ class PcsDieFilePage:
 
     # ------------------------------------------------------------------------------------- TP bins
     def on_program(self, e: events.ValueChangeEventArguments) -> None:
-        """The TP Name box changed: its value is recorded (and looked up in Oracle) once it has been left alone for
+        """The TP Name box changed: its value is recorded (and looked up) once it has been left alone for
         PROGRAM_DELAY seconds - every keystroke starts the wait again.  Both TP status labels and bars start over with it
         (they count down together), so neither keeps what the lookup of the name before said."""
         if (e.value or "").strip():
@@ -1031,7 +1031,7 @@ class PcsDieFilePage:
         await self.lookup_program()
 
     async def lookup_program(self) -> None:
-        """Record the TP Name box's value and look the TP's bins up in Oracle.  The lookup of the bins its units had starts
+        """Record the TP Name box's value and look the TP's bins up.  The lookup of the bins its units had starts
         at the same moment, in the timer of its own (``unit_tick``) - its status says so right away, so both TP status
         labels switch together."""
         value = (self.program_input.value or "").strip()
@@ -1049,7 +1049,7 @@ class PcsDieFilePage:
             await self.lookup_bins(value, units=True)
 
     async def lookup_bins(self, value: str, *, units: bool = False) -> None:
-        """Look ``value`` up in Oracle - the bins of the TP itself, or with ``units`` the bins its units had - in a thread
+        """Look ``value`` up - the bins of the TP itself, or with ``units`` the bins its units had - in a thread
         (the login and the query take a few seconds, the unit level query much longer).  The answer goes to the status
         bar; the bins go to a CSV file in the temp folder."""
         service = self.services.program_bins

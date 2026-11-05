@@ -12,6 +12,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import time as time_of_day
 from pathlib import Path
 
 import pytest
@@ -56,7 +57,10 @@ def app_url(tmp_path_factory):
         encoding="utf-8",
     )
     log = (folder / "app.out").open("wb")
+    scratch = folder / "tmp"  # the app's %TEMP%: its daily cleanup must never reach the real TP-bin CSVs
+    scratch.mkdir()
     env = {key: value for key, value in os.environ.items() if key != "PYTEST_CURRENT_TEST"}  # NiceGUI would think it is a screen test
+    env.update(TMPDIR=str(scratch), TEMP=str(scratch), TMP=str(scratch))
     process = subprocess.Popen(
         [sys.executable, str(ROOT / "app.py"), "--config", str(config)],
         cwd=folder, env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -90,22 +94,57 @@ def test_the_app_never_opens_a_browser(tmp_path):
     assert (options["host"], options["port"]) == ("127.0.0.1", 8080)
 
 
-def test_the_program_lookup_is_wired_from_the_config(tmp_path):
+def test_the_default_program_lookup_uses_configured_pyuber_datasources(tmp_path):
     import app as pcs_app
     from config import Settings
+    from services import PyUberProgramBinsService
 
     path = tmp_path / "config.json"
     path.write_text(
-        json.dumps({"oracle": {"portable_dir": "ora", "alias": ["PG.ARIES", "SVC.ARIES"]}, "database": {"path": "q.db"}}),
+        json.dumps(
+            {
+                "program_bins": {
+                    "datasources": ["SVC_PROD_ARIES", "VN_PROD_ARIES"],
+                },
+                "database": {"path": "q.db"},
+            }
+        ),
         encoding="utf-8",
     )
     services = pcs_app.build_services(Settings(path))
     try:
-        lookup = services.program_bins
-        assert lookup.portable_dir == tmp_path / "ora" and lookup.aliases == ("PG.ARIES", "SVC.ARIES")
-        assert lookup.module_path == tmp_path / "ora" / "oracle_db.py"  # (not there: the app still starts, see main())
+        assert isinstance(services.program_bins, PyUberProgramBinsService)
+        assert services.program_bins.datasources == ("SVC_PROD_ARIES", "VN_PROD_ARIES")
     finally:
         services.db.dispose()
+
+
+def cleanup_job(tmp_path, program_bins: dict):
+    import app as pcs_app
+    from config import Settings
+
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"program_bins": program_bins, "database": {"path": "q.db"}}), encoding="utf-8")
+    settings = Settings(path)
+    services = pcs_app.build_services(settings)
+    try:
+        return pcs_app.cleanup_scheduler(settings, services), services
+    finally:
+        services.db.dispose()
+
+
+def test_the_csv_folder_is_cleaned_at_midnight_unless_the_config_says_otherwise(tmp_path):
+    scheduler, services = cleanup_job(tmp_path, {})
+    assert scheduler is not None and scheduler.at == time_of_day(0, 0)
+    assert scheduler.job == services.program_bins.clean_out_dir  # the folder the lookups save to
+
+    scheduler, _ = cleanup_job(tmp_path, {"cleanup_at": "03:30"})
+    assert scheduler is not None and scheduler.at == time_of_day(3, 30)
+
+
+def test_an_empty_cleanup_time_turns_the_csv_cleanup_off(tmp_path):
+    scheduler, _ = cleanup_job(tmp_path, {"cleanup_at": ""})
+    assert scheduler is None
 
 
 def notes_for(tmp_path, server: dict, token: str = "s3cret") -> list[tuple[int, str]]:
@@ -251,10 +290,13 @@ def test_the_monitor_and_the_log_are_running(app_url):
     _, folder = app_url
     deadline = time.monotonic() + 10
     log_file = folder / "db" / "pcs1stop.log"
-    while time.monotonic() < deadline and not (log_file.exists() and "timeout monitor started" in log_file.read_text(errors="replace")):
+    started = ("timeout monitor started", "TP-bin cleanup scheduled every day at 00:00")  # two start-up hooks, either may log first
+    while time.monotonic() < deadline and not (log_file.exists() and all(line in log_file.read_text(errors="replace") for line in started)):
         time.sleep(0.2)
     text = log_file.read_text(errors="replace")
     assert "timeout monitor started" in text and "task store:" in text
+    assert "TP-bin cleanup scheduled every day at 00:00, next run" in text
+    assert f"TP-bin CSVs in {folder / 'tmp' / 'pcs1stop_bins'} are deleted every day at 00:00" in text
 
 
 def test_a_broken_config_stops_the_start_with_a_message(tmp_path):

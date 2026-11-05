@@ -36,8 +36,10 @@ relative to the folder of `config.json`:
 | `server.websocket` | how the browsers stay connected. `false` (default, as shipped) = plain HTTP polling, which works behind every reverse proxy at once. `true` = WebSocket first, polling as the fallback: lighter, but IIS + ARR often cannot relay it - the browser then waits about 20 s before it falls back, or keeps retrying the WebSocket - and the PCS die file, Tasks and Workers pages stay empty meanwhile |
 | `server.compression` | `false` (default, as shipped) = the app compresses nothing: NiceGUI gzips its pages and the socket.io engine gzips every polling response of 1 KB or more, and behind IIS, which compresses by itself, that makes two layers. The browser undoes only one, the NiceGUI connection receives binary garbage, drops the session and reconnects for ever - small updates get through, every big one (a pcs_die_file's tables) is lost. `true` = the app compresses (a direct connection without a proxy) |
 | `ui.product` | `SST` or `HST` - the Product box (remembered here): which drive mapping the path checks use, and what the Action / Alarm Config Key pickers of the rule grid offer (see *Action and Alarm Config Key pickers*) |
-| `oracle.portable_dir` | the folder with `oracle_db.py`, the Oracle client and the TNS files - the `pcs_oracle_portable` set the TP Name box looks test programs up with (restart needed). Default `pcs_oracle_portable`. If it is missing the app still starts (the log warns) and a lookup says what is missing. The SQL is not in it: see `queries/` below |
-| `oracle.alias` | the TNS alias of the database the lookup logs in to - or a list of aliases, default `["VN.ARIES", "SVC.ARIES"]` (restart needed). With a list, every lookup asks **each** database in turn and merges the answers, a bin that two of them have counts once (see *Databases* under *TP bins*); a database that cannot be reached fails the lookup. A single string (`"VN.ARIES"`) still works: one database |
+| `program_bins.datasources` | ordered PyUber source names (restart needed), default `["VN_PROD_ARIES", "SVC_PROD_ARIES"]`; each lookup queries every source and deduplicates results |
+| `program_bins.cleanup_at` | the time of day (`HH:MM`, 24 hours, on PC1's clock; restart needed), default `00:00`: every day at that time PC1 deletes every file in `%TEMP%\pcs1stop_bins`, where the TP lookups save their CSVs (see *TP bins*). `""` = never delete |
+| `oracle.portable_dir` | legacy Oracle service setting; does not affect active PyUber lookups |
+| `oracle.alias` | legacy Oracle service setting; does not affect active PyUber lookups |
 | `database.path` | the SQLite task store, default `data/queue.db` (keep it on a local disk) |
 | `tasks.monitor_interval_s` / `worker_offline_after_s` / `assigned_timeout_s` / `running_timeout_s` | 60 / 60 / 300 / 3600 seconds |
 | `tasks.ui_refresh_s` | refresh of the Tasks and Workers pages (5) |
@@ -175,14 +177,14 @@ Things to know:
   pcs_die_file while the edits go to another.
 * The Product box applies to the checks: after it changes, every path is checked again for the new product.
 
-## TP bins (TP Name box -> Oracle)
+## TP bins (TP Name box -> PyUber)
 
 The **TP Name** box in the toolbar takes the name of a test program (TP). It never changes the open pcs_die_file; the bins it
 looks up are compared with the rules (see *Missing bins* and *Unit level bins* below).
 Type or paste it and leave it alone: **10 seconds after the last keystroke** the value is recorded, PC1 looks the TP's
-bins up in Oracle and saves them - and, at the same moment, the bins its units had (see *Unit level bins*). Every keystroke
+bins up through the configured backend (PyUber by default) and saves them - and, at the same moment, the bins its units had (see *Unit level bins*). Every keystroke
 starts the 10 seconds again; emptying the box cancels the wait. The status bar at the bottom follows it: `TP: query in 12 s ...`,
-`TP 'EMRR1X3B13K2634A': querying Oracle ...`, then `TP 'EMRR1X3B13K2634A': 13978 bin(s) queried` - or why it failed (a toast says
+`TP 'EMRR1X3B13K2634A': querying program bins ...`, then `TP 'EMRR1X3B13K2634A': 13978 bin(s) queried` - or why it failed (a toast says
 so too). The CSV's folder is not shown there; it is in the log.
 
 The two TP status labels in the status bar (the TP's bins, and the bins of its units) and their progress bars move together:
@@ -191,18 +193,17 @@ switch to `querying ...` when the 10 seconds are over, and emptying the box puts
 A lookup of the name before that ends while you type again does not touch them (its bins still go to their CSV and a toast
 says how it went), so the bar never shows the outcome for one name next to the countdown for another.
 
-**Databases.** `oracle.alias` lists the databases a TP is looked up in - `VN.ARIES` and `SVC.ARIES` as shipped. Both lookups
-(the TP's own bins and the bins of its units) run the same SQL on each of them, one after the other, and the rows are merged:
-a `(PROGRAM_NAME, BIN_NUMBER)` that both have is written once, the rows of the first alias first, so a TP that only one of
-the databases knows is found all the same. If a database cannot be reached (login, network, query) the whole lookup fails and
-the message starts with its name, e.g. `TP 'EMRR1X3B13K2634A': SVC.ARIES: DatabaseError: ORA-12170 ...` - a CSV with the bins
-of one database only would hide missing bins, so nothing is written. The SQL files must therefore run on every database of the
-list. Alias order is lookup order; to look in one database only, give `oracle.alias` that one name.
+**Datasources.** `program_bins.datasources` lists PyUber/UNIQE datasource names (not TNS aliases); defaults:
+`VN_PROD_ARIES` and `SVC_PROD_ARIES`. Both lookups (the TP's own bins and the bins of its units) query every source in
+order. A `(PROGRAM_NAME, BIN_NUMBER)` found in more than one source is written once, with the first source's rows first.
+If a source cannot be reached or queried, the whole lookup fails and names that source; no partial CSV is written.
 
-**Where the SQL is.** `pcs_oracle_portable/oracle_db.py` only opens the connection (`OracleDataAccess.connect()`: Kerberos
-login, thick mode) and executes a SQL string (`get_data()`) - there is no SQL in it, so that folder can be moved to another
-project as it is, which then brings its own queries. This app keeps its SQL in the **`queries/`** folder next to `app.py`,
-one `.sql` file per query (a comment on top says what it is and which bind variables it takes):
+The old Oracle service remains in `services/program_bins.py`; the app no longer imports or selects it. The
+`pcs_oracle_portable/` files remain untouched. Re-enabling that path requires restoring the old service wiring manually.
+
+**Where the SQL is.** Active lookups read SQL files from the **`queries/`** folder next to `app.py` and execute them through
+PyUber; Polars reads the query results. One `.sql` file per query (a comment on top says what it is and which bind
+variables it takes):
 
 | file | what | bind variables |
 | --- | --- | --- |
@@ -211,10 +212,9 @@ one `.sql` file per query (a comment on top says what it is and which bind varia
 | `queries/who.sql` | how the login was done (`AUTH`) and which `SERVICE` it reached - for the self-test | - |
 
 The files are read at every lookup: edit and save, the next lookup uses the new text - no restart. A `;` at the end (as SQL
-Developer writes it) is dropped. A bind variable that is no longer in the text is not passed, so a query may be edited
-down. The TP name is always a bind variable, never part of the SQL text. `oracle_db.py` is imported by its path and never
-edited here: replace the folder to update it. Of the three columns `program_bins.sql` returns (`PROGRAM_NAME`,
-`BIN_DESCRIPTION`, `BIN_NUMBER`) the CSV keeps two, each pair once (also when both databases have it), in the order Oracle sent them:
+Developer writes it) is dropped. A bind variable that is no longer in the text is not passed. The TP name is always a bind
+variable, never part of the SQL text. Of the three columns `program_bins.sql` returns (`PROGRAM_NAME`, `BIN_DESCRIPTION`,
+`BIN_NUMBER`) the CSV keeps two and deduplicates each pair across all datasources, in configured order:
 
 ```
 %TEMP%\pcs1stop_bins\bins_EMRR1X3B13K2634A.csv
@@ -229,18 +229,17 @@ EMRR1X3B13K2634A,91030000
 `bins_<TP>_1.csv` (`_2`, ...) instead and a toast says so: a lookup never fails for that. In the file name every character
 other than letters, digits, `.`, `_` and `-` becomes `_`.
 
-What PC1 needs (`uv run pcs_oracle_portable\oracle_db.py --sql queries\program_bins.sql --bind programname=<name>` tests
-all of it; without `--sql` it only checks the login, `--sql queries\who.sql` tells how it was done; `--alias SVC.ARIES`
-picks the database, `VN.ARIES` if it is left out - test every alias of `oracle.alias`):
+**Cleanup.** The CSVs are working files, so PC1 empties the folder every day at `program_bins.cleanup_at` (default `00:00`
+on PC1's clock; `""` turns it off): every regular file in `%TEMP%\pcs1stop_bins` is deleted (`bins_<TP>.csv`,
+`bins_<TP>_1.csv`, `unit_bins_<TP>.csv`, ...); the folder itself and any subfolder stay. It is a background job of the app,
+not a task for a worker - a PC2 worker cannot reach PC1's `%TEMP%`. It does not run when the app starts, and a night the app
+was down is not made up. A file that another program has open (Excel) cannot be deleted: it stays, `pcs1stop.log` names it
+in a warning, and the next cleanup takes it. The log also says at start-up when the next cleanup is due, and after each one
+how many files it deleted. A page left open over the night, with a TP looked up, then reports `the file is gone - query the
+TP again` in its Missing Bins tabs until the TP is queried again.
 
-* `oracle.portable_dir` with `oracle_client\bin` (the Oracle 11.2 x64 client - hence `oracledb<4`, which `uv sync`
-  installs) and `database_config\` (`TNSNAMES.ORA`, which must have every alias of `oracle.alias`, `sqlnet.ora`, `krb5.conf`);
-* a Windows user that has a Kerberos login to every one of the databases (`User Id=/`): the lookup uses the identity of the
-  user who runs PC1, not the visitor's.
-
-The app starts without the folder (the log warns), and a lookup then says what is missing. Oracle errors are shown as one
-line that starts with the database it came from, with the hint of `oracle_db.py` where it has one (`ORA-12154`, `ORA-12641`,
-`DPI-1047`, ...).
+PyUber runs through Intel's Uber/UNIQE client and requires its .NET runtime; PC1's user must have access to every configured
+datasource. `queries/who.sql` remains the dormant Oracle module's self-test query; it is not part of active TP-bin lookups.
 
 ## Unit level bins (second Missing Bins tab)
 
@@ -252,15 +251,15 @@ place of its own in the status bar: `TP 'EMRR1X3B13K2634A': querying unit level 
 `TP 'EMRR1X3B13K2634A': 412 unit level bin(s) in the last 60 days`.
 
 * The SQL is the unit level query of the old WinForms app (`unit_tp_query`) cut down to what the bins need: `SELECT DISTINCT
-  program_name, interface_bin, functional_bin, data_bin` over `A_Testing_Session` joined to `A_Device_Testing`, so Oracle sends
+  program_name, interface_bin, functional_bin, data_bin` over `A_Testing_Session` joined to `A_Device_Testing`, so the database returns
   a few thousand rows however many units the TP has. The join of those two tables and the list of operations are the old
   query's, unchanged. What the old query had besides - the joins to `A_Device_Item` and `A_Device_Item_ULT_Log`, 37 columns
   in an inline view with its own `SELECT DISTINCT` - never reached the bins and is gone, and `program_name` is compared as it
   is (`= UPPER(:programname)`; every TP name is upper case) so that the index `TS_TP_FK_I` is used. A TP with 49 000
   sessions in 30 days went from 171 s to under 1 s, with the same bins; the comment on top of the file says what must stay.
 * **60 days**: the old query started at a fixed work week (`lao_start_ww >= 202521`). Here it is the bind variable `min_ww`,
-  the Intel work week of *today minus 60 days* (`UNIT_DAYS` in `services/program_bins.py`; Sunday to Saturday, week 1 holds
-  January 1, written YYYYWW). It is a work week, not a day: the first week is taken whole.
+  the Intel work week of *today minus 60 days* (`UNIT_DAYS` and `work_week` in `services/program_bins_common.py`; Sunday to
+  Saturday, week 1 holds January 1, written YYYYWW). It is a work week, not a day: the first week is taken whole.
 * **A unit counts with its most detailed bin**: `data_bin`, else `functional_bin`, else `interface_bin`, written as a whole
   number (a NUMBER that arrives as `91030000.0` is `91030000`). The bins nest - `91030000` is in `9103`, which is in `91` - so
   a unit whose bin is in a rule is covered at every level.
@@ -388,9 +387,9 @@ delivery) / 411 / 413 / 422. Request bodies are limited to 1 MB (a task's payloa
   a redirect is never followed (it would carry the token on to wherever it points).
 * A pcs_die_file can name any path, including `\\any-server\share\...` - a check makes the worker PC contact that server.
   Set `allowed_roots` (`--allowed-root`) to the folders and shares your pcs_die_files really use.
-* The TP Name box makes PC1 query Oracle with PC1's own Kerberos login (read-only, the name is a bind variable) for
-  whoever can reach the site - the 10 seconds are a convenience of the page, not a rate limit. The unit level query is the
-  heavy one (it can run for minutes), so mind who may reach the site.
+* The TP Name box makes PC1 query its configured datasources (PyUber/UNIQE by default; the rollback backend uses Oracle
+  with PC1's own Kerberos login). Queries are read-only and the TP name is a bind variable. The 10 seconds are a
+  convenience, not a rate limit. The unit-level query is the heavy one, so mind who may reach the site.
 * Request bodies are size-checked before they are read, so a huge request is refused (413) with or without a token.
 
 ## Layout
@@ -401,13 +400,14 @@ config.py, config.json  every path and knob (paths are relative to config.json)
 DpcConfig/V1.00/        AlarmIdMapping.xml for the pcs_die_file checker
 database/               SQLAlchemy models, SQLite engine (WAL, BEGIN IMMEDIATE), init_db
 services/               task_service, worker_service, timeout_monitor (+ path_checks: the check_path task, its tracker;
-                        program_bins: the TP Name box's Oracle lookups)
+                        program_bins_pyuber: active TP lookups; program_bins: dormant Oracle implementation)
 api/                    task_api, worker_api, schemas, token check, request-size limit
 scheduler/monitor.py    runs the timeout monitor every 60 s
+scheduler/daily.py      runs a job once a day at a fixed time (the TP-bin CSV cleanup)
 ui/                     pcs_die_file_page (the editor), tasks_page, workers_page
 pcs_die_file/                 model.py (editable tables, undo, export), validation.py, duplicates.py (the duplicate-bins step), missing_bins.py (the missing-bins step, reads the TP's CSVs with Polars), flow.py (what the Action / Alarm Config Key pickers send -> the alarms of a rule), pcs_die_file_checker.py
-pcs_oracle_portable/    oracle_db.py (connection + execute a SQL string, no SQL) + Oracle client + TNS files (oracle.portable_dir): imported by path
-queries/                the SQL of the app, one .sql file per query (program_bins, unit_tp_bins, who): read at every lookup
+pcs_oracle_portable/    unchanged dormant Oracle module, client and TNS files
+queries/                active PyUber SQL files for program_bins and unit_tp_bins; who.sql remains for Oracle self-test
 worker/                 worker_agent.py + worker_config.json (stand-alone; the template of the PC2 package)
 deploy/                 build_worker_package.py, pc2/ (install / uninstall / run scripts), iis/web.config
 dist/                   the built PC2 package (git-ignored: it holds the API token)

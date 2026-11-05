@@ -6,6 +6,7 @@
       "server":   { "host": "127.0.0.1", "port": 8007, "public_url": "http://ppv-pcs1stop-ss.intel.com", "websocket": false,
                     "compression": false },
       "ui":       { "product": "SST" },
+      "program_bins": { "datasources": ["VN_PROD_ARIES", "SVC_PROD_ARIES"], "cleanup_at": "00:00" },
       "oracle":   { "portable_dir": "pcs_oracle_portable", "alias": ["VN.ARIES", "SVC.ARIES"] },
       "database": { "path": "data/queue.db" },
       "tasks":    { "monitor_interval_s": 60, "worker_offline_after_s": 60, "assigned_timeout_s": 300,
@@ -38,13 +39,13 @@ server.compression          true = the app compresses what it sends (right for a
                             that makes two layers - the browser undoes only one, the NiceGUI connection receives binary
                             garbage and every big update (a pcs_die_file's tables) is lost
 ui.product                  SST or HST - what the Product box shows and what the workflow path checks send to the workers
-oracle.portable_dir         the folder with oracle_db.py, the Oracle client and the TNS files (the pcs_oracle_portable set):
-                            what the TP Name box looks test programs up with (restart needed).  Missing = the app still
-                            starts, and a lookup says what is missing
-oracle.alias                the TNS alias of the database the lookup logs in to - or a list of aliases, as shipped
-                            ["VN.ARIES", "SVC.ARIES"]: every lookup then asks each database in turn and merges the
-                            answers, a bin that two of them have counts once.  A database that cannot be reached fails
-                            the lookup (restart needed)
+program_bins.datasources    PyUber datasource names, default ["VN_PROD_ARIES", "SVC_PROD_ARIES"]; queried in order and
+                            deduplicated. A datasource failure fails the lookup rather than writing partial results
+program_bins.cleanup_at     "HH:MM" on PC1's clock (24 hours, restart needed), default "00:00": every day at that time PC1
+                            deletes every file in %TEMP%\\pcs1stop_bins, where the TP lookups save their CSVs.  A file
+                            another program has open stays until the next day.  "" = never delete
+oracle.portable_dir         legacy Oracle service only: folder with oracle_db.py, Oracle client and TNS files
+oracle.alias                legacy Oracle service only: TNS alias or aliases, default ["VN.ARIES", "SVC.ARIES"]
 database.path               the SQLite task store (restart needed); created on first start
 tasks.monitor_interval_s    how often the timeout monitor runs (restart needed)
 tasks.worker_offline_after_s  a worker not heard of for this long is OFFLINE
@@ -68,9 +69,11 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 import tempfile
 import threading
 import time
+from datetime import time as time_of_day
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -102,6 +105,10 @@ DEFAULTS: dict[str, dict[str, Any]] = {
         "compression": False,
     },  # (see above)
     "ui": {"product": PRODUCTS[0]},
+    "program_bins": {
+        "datasources": ["VN_PROD_ARIES", "SVC_PROD_ARIES"],
+        "cleanup_at": "00:00",
+    },
     "oracle": {"portable_dir": "pcs_oracle_portable", "alias": ["VN.ARIES", "SVC.ARIES"]},
     "database": {"path": "data/queue.db"},
     "tasks": {
@@ -162,6 +169,20 @@ def _merge(dst: dict, src: dict) -> None:
 def _as_list(value: Any) -> list:
     """``oracle.alias`` is one alias or a list of them: either way a list."""
     return value if isinstance(value, list) else [value]
+
+
+_CLOCK_TIME = re.compile(r"([01]?[0-9]|2[0-3]):([0-5][0-9])")
+
+
+def parse_clock_time(value: str) -> time_of_day | None:
+    """``HH:MM`` on a 24 hour clock (``0:05`` is ``00:05``); an empty string is ``None``.  ValueError for anything else."""
+    text = value.strip()
+    if not text:
+        return None
+    found = _CLOCK_TIME.fullmatch(text)
+    if found is None:
+        raise ValueError(f"not a time of day like 00:00: {value!r}")
+    return time_of_day(int(found[1]), int(found[2]))
 
 
 def is_site_address(url: str) -> bool:
@@ -230,6 +251,22 @@ def _validate(data: dict, where: str) -> None:
         raise ConfigError(
             f'{where}: "ui.product" must be one of {", ".join(PRODUCTS)}, got {json.dumps(product)}'
         )
+    datasources = expect(
+        "program_bins", "datasources", (list,), "a non-empty list of PyUber datasource names"
+    )
+    if not datasources or not all(isinstance(name, str) and name.strip() for name in datasources):
+        raise ConfigError(
+            f'{where}: "program_bins.datasources" must be a non-empty list of datasource names, '
+            f"got {json.dumps(datasources)}"
+        )
+    cleanup_at = expect("program_bins", "cleanup_at", (str,), 'a time like "00:00", or "" for never')
+    try:
+        parse_clock_time(cleanup_at)
+    except ValueError:
+        raise ConfigError(
+            f'{where}: "program_bins.cleanup_at" must be a time of day like 00:00 (HH:MM, 24 hours) or "" for never, '
+            f"got {json.dumps(cleanup_at)}"
+        ) from None
     if not expect("oracle", "portable_dir", (str,), "a path string").strip():
         raise ConfigError(f'{where}: "oracle.portable_dir" must not be empty')
     alias = data["oracle"]["alias"]
@@ -405,6 +442,17 @@ class Settings:
     def product(self) -> str:
         """The selected product line, upper case (one of PRODUCTS)."""
         return self.data["ui"]["product"].strip().upper()
+
+    @property
+    def program_bins_datasources(self) -> tuple[str, ...]:
+        """The ordered PyUber datasources used for TP-bin queries."""
+        names = self.data["program_bins"]["datasources"]
+        return tuple(dict.fromkeys(name.strip() for name in names))
+
+    @property
+    def program_bins_cleanup_at(self) -> time_of_day | None:
+        """The time of day (PC1's clock) PC1 deletes the TP-bin CSVs every day; None = never."""
+        return parse_clock_time(self.data["program_bins"]["cleanup_at"])
 
     @property
     def oracle_dir(self) -> Path:

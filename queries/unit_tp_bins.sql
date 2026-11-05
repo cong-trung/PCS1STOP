@@ -1,10 +1,11 @@
 -- Bins of the units of a test program (TP): what the "unit level data" Missing Bins tab compares with the rules.
--- Run by ProgramBinsService.query_units() (services/program_bins.py) with two bind variables, once on every database of
--- oracle.alias (config.json: VN.ARIES and SVC.ARIES) - the text must run on all of them; the bins are merged, each once:
+-- Run by PyUberProgramBinsService.query_units() (services/program_bins_pyuber.py) with two bind variables, once on every
+-- PyUber datasource in program_bins.datasources (default: VN_PROD_ARIES and SVC_PROD_ARIES); bins are merged, each once:
+-- The retained Oracle backend reads this same SQL file.
 --   programname  the TP name from the TP Name box (upper / lower case does not matter)
 --   min_ww       first work week to look at = the work week of "today minus 60 days" (UNIT_DAYS in program_bins.py)
 -- The unit level query (unit_tp_query) of the old WinForms app, cut down to the bins it needs (see Speed below), so
--- Oracle sends a few thousand rows however many units the TP has. Edit and save: the next lookup uses the new text (no
+-- the database sends a few thousand rows however many units the TP has. Edit and save: the next lookup uses the new text (no
 -- restart, no ';' at the end). A bind variable that is no longer in the text is simply not passed.
 -- Speed: the old text (the whole old query as an inline view under an outer SELECT DISTINCT of the four bins) took 171 s for a
 -- TP with 49 000 sessions in 30 days; this one takes under 1 s and returns the same rows. The ARIES tables are partitioned by
