@@ -11,6 +11,8 @@ from services import utcnow
 from services.program_bins import UNIT_DAYS
 from ui.common import STATIC
 from ui.pcs_die_file_page import (
+    ADD_ROW_TABLES,
+    FIRST_CELL,
     UNIT_TAB,
     column_defs,
     program_status,
@@ -200,6 +202,14 @@ def test_the_rule_grid_ends_with_the_read_only_note_column_and_the_trash_icon():
     assert [d.get("field") for d in defs[-3:]] == ["error", "note", None] and defs[-2]["headerName"] == "Note"
     assert defs[-1]["colId"] == "_del"
     assert all(d.get("field") != "note" for d in column_defs("workflow") + column_defs("parametric"))
+
+
+def test_the_parametric_grid_can_add_rows_and_shows_the_cells_they_need():
+    headers = {d.get("field"): d.get("headerName") for d in column_defs("parametric")}
+    assert headers["rule_name"] == "Rule Name"  # RuleName is required and unique in the file: an added row needs it
+    assert headers["bin_or_token"] == "BinOrToken"  # the copied alarm's BinOrToken is empty too: the row needs that cell
+    assert FIRST_CELL["parametric"] == "parameter_name"  # the cursor lands in the empty cell of the new row
+    assert "parametric" in ADD_ROW_TABLES
 
 
 def test_the_grid_script_and_the_model_agree_on_the_read_only_columns():

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from pcs_die_file.model import COLUMNS, READ_ONLY_FIELDS, CellEdit, PcsDieFileDoc
+from pcs_die_file.model import COLUMNS, READ_ONLY_FIELDS, CellEdit, PcsDieFileDoc, PcsDieFileError
 
 P1 = r"M:\pcs\wf\SST_PowerCycle.xml"
 P2 = r"M:\pcs\wf\SST_ReplaceMB.xml"
@@ -500,3 +500,111 @@ def test_resizing_then_deleting_the_row_then_undoing_everything_gives_the_file_b
     while doc.can_undo:
         doc.undo()
     assert doc.export_bytes() == original
+
+
+# ------------------------------------------------------------------------------------- a new PARAMETRIC row
+PARAMETRIC_XML = """<ComponentRecipe checksum="x">
+  <SharedConfigurations />
+  <RuleGroup GroupName="Parametric">
+    <!--Pedestal inspection-->
+    <PARAMETRIC ParameterName="VCTIMCount" UpperLimit="3000" RuleName="1502" CollateralType="Cell">
+      <Alarm Severity="ParameterControlWarning_3" Rule="Param" BinOrToken="VCTIMCount" Action="ConfigKey" ConfigKey="SST_ReplaceVCTIM" />
+    </PARAMETRIC>
+    <PARAMETRIC ParameterName="CleaningCycleCount" UpperLimit="5000" RuleName="1504" CollateralType="Cell">
+      <Alarm Severity="ParameterControlWarning_3" Rule="Param" BinOrToken="CleaningCycleCount" Action="ConfigKey" ConfigKey="SST_ReplaceVCTIM" />
+    </PARAMETRIC>
+  </RuleGroup>
+</ComponentRecipe>
+"""
+
+
+def parametric_doc() -> PcsDieFileDoc:
+    return PcsDieFileDoc(PARAMETRIC_XML.encode("utf-8"), "parametric.xml")
+
+
+def test_an_added_parametric_row_is_a_blank_copy_of_the_one_it_is_added_below():
+    doc = parametric_doc()
+    (added,) = doc.add_row("parametric", "p0").added
+    assert added.index == 1 and added.row["group"] == "Parametric"  # stays in its RuleGroup
+    assert added.row["parameter_name"] == "" and added.row["rule_name"] == ""  # what identifies the rule: empty
+    assert added.row["upper_limit"] == "3000"  # the settings are copied, like X / Y of an XOFYBIN row
+    assert added.row["action"] == "ConfigKey" and added.row["config_key"] == "SST_ReplaceVCTIM"
+    assert [r["rule_name"] for r in doc.rows("parametric")] == ["1502", "", "1504"]
+    assert doc.dirty and doc.can_undo and doc.is_editable("parametric", added.row["id"], "rule_name")
+
+
+def test_the_added_parametric_row_clears_the_bin_token_and_copies_no_comment():
+    doc = parametric_doc()
+    doc.add_row("parametric", "p0")
+    out = doc.export_bytes().decode("utf-8")
+    assert out.count("<PARAMETRIC ") == 3 and out.count("<!--Pedestal inspection-->") == 1
+    (copy,) = [line for line in out.splitlines() if line.strip().startswith('<PARAMETRIC ParameterName=""')]
+    assert 'RuleName=""' in copy and 'UpperLimit="3000"' in copy and 'CollateralType="Cell"' in copy
+    assert 'BinOrToken=""' in out  # the alarm does not point at the parameter of the rule it was copied from
+    assert doc.export_mode == "patch"
+
+
+def test_the_added_parametric_row_can_be_filled_in_from_the_grid():
+    doc = parametric_doc()
+    row = doc.add_row("parametric", "p0").added[0].row["id"]
+    res = doc.apply_edits([
+        CellEdit("parametric", row, "rule_name", "1503"),
+        CellEdit("parametric", row, "parameter_name", "CleanCycleCount"),
+        CellEdit("parametric", row, "upper_limit", "4500"),
+        CellEdit("parametric", row, "bin_or_token", "CleanCycleCount"),
+    ])
+    assert res.applied == 4 and res.skipped_unknown == 0  # BinOrToken is a cell of the grid, like in the XOFYBIN one
+    assert doc.rows("parametric")[1]["parameter_name"] == "CleanCycleCount"
+    assert doc.rows("parametric")[1]["bin_or_token"] == "CleanCycleCount"
+    out = doc.export_bytes().decode("utf-8")
+    assert 'RuleName="1503"' in out and 'ParameterName="CleanCycleCount"' in out and 'UpperLimit="4500"' in out
+    assert 'BinOrToken="CleanCycleCount"' in out  # the copied alarm does not keep pointing at the parameter above
+
+
+def test_a_parametric_rows_bin_or_token_cell_is_the_bin_token_of_its_alarms():
+    doc = parametric_doc()
+    assert [r["bin_or_token"] for r in doc.rows("parametric")] == ["VCTIMCount", "CleaningCycleCount"]
+    assert doc.is_editable("parametric", "p1", "bin_or_token")
+    doc.apply_edits([CellEdit("parametric", "p1", "bin_or_token", "CycleCount")])
+    assert doc.rows("parametric")[1]["bin_or_token"] == "CycleCount"
+    assert 'BinOrToken="CycleCount"' in doc.export_bytes().decode("utf-8")
+    doc.undo()
+    assert doc.rows("parametric")[1]["bin_or_token"] == "CleaningCycleCount"
+
+
+def test_undo_and_redo_of_an_added_parametric_row_are_exact():
+    original = PARAMETRIC_XML.encode("utf-8")
+    doc = PcsDieFileDoc(original, "parametric.xml")
+    doc.add_row("parametric", "p0")
+    assert doc.export_bytes() != original
+    doc.undo()
+    assert doc.export_bytes() == original and not doc.dirty and not doc.can_undo
+    doc.redo()
+    assert doc.export_bytes() != original and doc.rows("parametric")[1]["rule_name"] == ""
+    doc.delete_row("parametric", doc.rows("parametric")[1]["id"])
+    doc.undo()  # the row is back exactly as add_row made it
+    assert [r["rule_name"] for r in doc.rows("parametric")] == ["1502", "", "1504"]
+
+
+def test_a_parametric_row_with_no_alarms_copies_the_nearest_rule_that_has_some():
+    xml = """<ComponentRecipe checksum="x">
+  <SharedConfigurations />
+  <RuleGroup GroupName="Parametric">
+    <PARAMETRIC ParameterName="VCTIMCount" UpperLimit="3000" RuleName="1502" CollateralType="Cell">
+      <Alarm Severity="ParameterControlWarning_3" Rule="Param" BinOrToken="VCTIMCount" Action="ConfigKey" ConfigKey="K" />
+    </PARAMETRIC>
+    <PARAMETRIC ParameterName="Empty" UpperLimit="1" RuleName="1504" CollateralType="Cell" />
+  </RuleGroup>
+</ComponentRecipe>
+"""
+    doc = PcsDieFileDoc(xml.encode("utf-8"), "p.xml")
+    (added,) = doc.add_row("parametric", "p1").added  # p1 has no alarms: its Action / ConfigKey cells would be dead
+    assert added.row["action"] == "ConfigKey" and added.row["config_key"] == "K"
+    assert doc.is_editable("parametric", added.row["id"], "action")
+    assert not doc.is_editable("parametric", "p1", "bin_or_token")  # a rule without alarms has no BinOrToken to type into
+    assert added.row["rule_name"] == "" and added.row["parameter_name"] == ""
+
+
+def test_a_pcs_die_file_without_a_parametric_rule_cannot_take_one():
+    with pytest.raises(PcsDieFileError):
+        rules_doc(("A", "IB70")).add_row("parametric")

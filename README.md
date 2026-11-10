@@ -319,6 +319,15 @@ Next to the **Rule** tab of the XOFYBIN table is the tab **Quality bin**: the sa
 same editing, but only the rules whose **X** and **Y** are both `1`. It is the same data - an edit in either tab changes
 the file - and the filter follows the X / Y cells as they are edited (a rule that no longer matches leaves the tab).
 
+## Adding and deleting rows
+
+Every table takes new rows: **Add row** puts one right below the selected row (below the last row when nothing is
+selected) and switches Edit mode on. It copies the structure and the settings of that row - same RuleGroup /
+ConfigGroup, same alarms - with what identifies the rule emptied: XOFYBIN: RuleName, Bins and the alarms' BinOrToken;
+PARAMETRIC: RuleName, ParameterName and the alarms' BinOrToken; workflow: Key and Path. The validation flags the row
+until it is filled in; the PARAMETRIC grid has a **Rule Name** column and, like the XOFYBIN grid, a **BinOrToken**
+column for exactly that. The trash icon deletes a row, Ctrl+Z puts it back exactly where it was, Ctrl+Y redoes it.
+
 ## Action and Alarm Config Key pickers (XOFYBIN Rule grid)
 
 A rule runs its `<Alarm>`s in order, each with an `Action` from `AlarmIdMapping.xml`. The Action `ConfigKey` runs the

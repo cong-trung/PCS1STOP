@@ -4,7 +4,8 @@ Three tables mirror the grids of the old WinForms tool:
 
     workflow    SharedConfigurations/ConfigGroup   Key, Workflow/@Path, Check (read-only: what a worker found out
                                                     about the Path - see ``set_path_checks``)
-    parametric  PARAMETRIC rules                    GroupName, ParameterName, UpperLimit, Alarm Action / ConfigKey
+    parametric  PARAMETRIC rules                    GroupName, ParameterName, UpperLimit, RuleName, Alarm Action,
+                                                    Alarm ConfigKey, Alarm BinOrToken
     xofy        XOFYBIN rules                       ValidOperations, Bins, X, Y, RuleName, ClearScope,
                                                     Alarm Action / ConfigKey, preceding comment, Alarm BinOrToken,
                                                     (validation error, note - both read-only: what the validation
@@ -30,9 +31,10 @@ Cell rules
       collapses equal values (three ``Socket`` alarms read ``Socket``), the flow does not
 
 Rows
-    ``add_row`` inserts a new XOFYBIN rule / workflow ConfigGroup right below a given row.  It is a copy of that
-    row's structure with the identifying values cleared (RuleName, Bins, BinOrToken, ClearScope / Key, Path, no
-    comment), so it follows the pcs_die_file's own conventions and the checker flags it until it is filled in.
+    ``add_row`` inserts a new XOFYBIN rule, PARAMETRIC rule or workflow ConfigGroup right below a given row.  It is a
+    copy of that row's structure with the identifying values cleared (XOFYBIN: RuleName, Bins, BinOrToken, ClearScope /
+    PARAMETRIC: RuleName, ParameterName, BinOrToken / workflow: Key, Path - no comment), so it follows the pcs_die_file's
+    own conventions and the checker flags it until it is filled in.
     ``delete_row`` takes a row out of any table, together with the comment glued in front of it.
     Both are one undo step each (Ctrl+Z puts a deleted row back exactly where it was, or removes an added one).
     Whitespace "belongs" to the node behind it - a row's lead (the text in front of it) is added with it and
@@ -52,7 +54,7 @@ from pathlib import PurePath
 from lxml import etree
 
 TABLES = ("workflow", "parametric", "xofy")
-ADD_ROW_TABLES = ("workflow", "xofy")
+ADD_ROW_TABLES = ("workflow", "parametric", "xofy")
 DELETE_ROW_TABLES = TABLES
 
 #: (field, header) per table, in display order.
@@ -62,8 +64,10 @@ COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("group", "Rule Group Name"),
         ("parameter_name", "Parameter Name"),
         ("upper_limit", "Upper Limit"),
+        ("rule_name", "Rule Name"),
         ("action", "Action"),
         ("config_key", "Config Key"),
+        ("bin_or_token", "BinOrToken"),
     ],
     "xofy": [
         ("valid_operations", "Valid Operations"),
@@ -596,7 +600,7 @@ class PcsDieFileDoc:
                 self._group_rows.setdefault(row.group, []).append(row)
             if not _alarms(el):
                 row.ro.update(
-                    {"config_key", "action"}
+                    {"config_key", "action", "bin_or_token"}
                     if t == "parametric"
                     else {"alarm_config_key", "action", "bin_or_token"}
                 )
@@ -955,6 +959,25 @@ class PcsDieFileDoc:
                 del node.attrib[key]
         return new
 
+    def _blank_parametric(self, ref_el):
+        """Copy of a PARAMETRIC rule with its structure and settings but not what identifies it: RuleName and
+        ParameterName (wherever the file keeps them) and every alarm's BinOrToken are emptied, and the comment is not
+        copied.  UpperLimit and everything else stay, like X / Y of an added XOFYBIN rule."""
+        new = copy.deepcopy(ref_el)
+        new.tail = None
+        scopes = [
+            (n, ("RuleName", "ParameterName"))
+            for n in [new, *_kids(new, "RepeatTriggerGroup")]
+        ]
+        scopes += [(a, ("RuleName", "ParameterName", "BinOrToken")) for a in _alarms(new)]
+        for node, names in scopes:
+            for name in names:
+                key = _ci_key(node, name)
+                if key is not None:
+                    node.set(key, "")
+                    self._slots.add((node, key))
+        return new
+
     def _blank_workflow(self, template: _Row | None, anchor, parent, lead: str):
         """A ConfigGroup with an empty Workflow, laid out like ``template`` (or with the file's indentation)."""
 
@@ -991,7 +1014,7 @@ class PcsDieFileDoc:
         Action / ConfigKey / BinOrToken cells would be dead), the nearest rule that has."""
         if _alarms(ref.el):
             return ref
-        rows = self._rows["xofy"]
+        rows = self._rows[ref.table]
         i = next(k for k, r in enumerate(rows) if r is ref)
         for d in range(1, len(rows)):
             for j in (i - d, i + d):
@@ -1003,6 +1026,8 @@ class PcsDieFileDoc:
         """Insert a new row right below ``after_id`` (default: below the last row of the table).
 
         xofy: a copy of that XOFYBIN rule with RuleName, Bins and BinOrToken emptied (same group, same layout)
+        parametric: a copy of that PARAMETRIC rule with RuleName, ParameterName and the alarm BinOrTokens emptied (same
+        group, same layout)
         workflow: a ConfigGroup with an empty Workflow, after the given one
         The new row is one undo step; ``EditResult.added`` tells the UI where it went."""
         if table not in ADD_ROW_TABLES:
@@ -1017,6 +1042,10 @@ class PcsDieFileDoc:
         elif table == "xofy":
             raise PcsDieFileError(
                 "This pcs_die_file has no XOFYBIN rule to copy the structure from."
+            )
+        elif table == "parametric":
+            raise PcsDieFileError(
+                "This pcs_die_file has no PARAMETRIC rule to copy the structure from."
             )
         else:
             anchor = None
@@ -1042,6 +1071,8 @@ class PcsDieFileDoc:
 
         if table == "xofy":
             new = self._blank_rule(self._template_rule(ref).el)
+        elif table == "parametric":
+            new = self._blank_parametric(self._template_rule(ref).el)
         else:
             gone = [
                 r for r in self._gone.values() if r.table == table

@@ -212,7 +212,7 @@ def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workf
             warnings.append(f"Alarm map not found ({alarm_map_path or 'no path set'}): Rule/Action lookups will fail. "
                             'Set "paths.alarm_map" in config.json.')
             amap = rc.AlarmIdMap()  # what pcs_die_file_checker.main() does
-        data, errors = rc.check_pcs_die_file_string(filename, xml_text, amap, skip_workflow_check, bin_digit_exceptions)
+        _, errors = rc.check_pcs_die_file_string(filename, xml_text, amap, skip_workflow_check, bin_digit_exceptions)
         err_text = errors.get_accumulated_error_string()
         per_rule, total = _split_blocks(errors)
     except Exception as e:  # noqa: BLE001 - the checker is user code; never take the UI down with it
@@ -226,7 +226,5 @@ def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workf
         parts.append(err_text)
     else:
         parts.append(f"No errors found in pcs_die_file: {filename}")
-        if data is not None:
-            parts.append(rc.next_valid_overflow_token(data, amap).rstrip())
     return CheckResult(text="\n".join(parts), ok=not err_text, n_errors=total, per_rule=per_rule,
                        warnings=warnings, seconds=time.perf_counter() - t0, **extra)

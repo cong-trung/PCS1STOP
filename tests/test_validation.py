@@ -71,6 +71,12 @@ def test_no_alarm_map_path_at_all_is_reported_too():
     assert result.warnings and "no path set" in result.warnings[0]
 
 
+def test_a_clean_check_reports_the_file_without_the_overflow_token_hint():
+    """What the Error tab says when there is nothing wrong: the file - not the checker's next-OverflowToken hint."""
+    res = rv.run_check(die_file(("Bin7000", "FB7000")), "r.xml", Settings(DEFAULT_CONFIG_PATH).alarm_map, True)
+    assert res.text == "No errors found in pcs_die_file: r.xml"
+
+
 def test_the_shipped_settings_hold_no_absolute_paths():
     """What the app reads on start-up lives inside the project: no drive letter (C:\\...) in the shipped settings."""
     data = json.loads(Path(DEFAULT_CONFIG_PATH).read_text(encoding="utf-8"))
@@ -234,6 +240,34 @@ def test_every_rule_of_the_real_die_file_takes_a_list_of_actions_and_stays_valid
     while doc.can_undo:
         doc.undo()
     assert doc.export_bytes() == REAL_DIE_FILE.read_bytes()  # (and undo gives every byte of the file back)
+
+
+# ------------------------------------------------------------------------------------ a new PARAMETRIC rule
+PARAMETRIC_PCS_DIE_FILE = """<ComponentRecipe checksum="x">
+  <Identity type="iLLIAD" datagroup="SST_X" name="Die" id="1" version="1.0" asof="2024-01-01T00:00:00" />
+  <SharedConfigurations />
+  <RuleGroup GroupName="Parametric">
+    <PARAMETRIC ParameterName="VCTIMCount" UpperLimit="3000" RuleName="1502" CollateralType="Cell">
+      <Alarm Severity="ParameterControlWarning_3" Rule="Param" BinOrToken="VCTIMCount" Action="PowerCycle" />
+    </PARAMETRIC>
+  </RuleGroup>
+</ComponentRecipe>
+"""
+
+
+def test_a_new_parametric_row_checks_clean_once_its_cells_are_filled_in():
+    doc = PcsDieFileDoc(PARAMETRIC_PCS_DIE_FILE.encode("utf-8"), "r.xml")
+    assert check_doc(doc).ok  # (the file itself has nothing to answer)
+    row = doc.add_row("parametric", "p0").added[0].row["id"]
+    res = check_doc(doc)
+    assert not res.ok and 'Invalid Attribute: [BinOrToken=""]' in res.text  # the copied alarm keeps the old parameter
+    doc.apply_edits([
+        CellEdit("parametric", row, "rule_name", "1503"),
+        CellEdit("parametric", row, "parameter_name", "NewCount"),
+        CellEdit("parametric", row, "bin_or_token", "NewCount"),
+    ])
+    res = check_doc(doc)
+    assert res.ok and res.n_errors == 0, res.text  # Save is on again: every cell of the new row can be typed in
 
 
 # ----------------------------------------------------------------------------------------- the missing bins step

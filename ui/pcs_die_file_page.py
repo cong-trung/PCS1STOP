@@ -84,7 +84,7 @@ GRID_TITLES = {
     "xofy": "XOFYBIN Rule",
 }
 #: the cell that gets the cursor in a freshly added row
-FIRST_CELL = {"xofy": "bins", "workflow": "key"}
+FIRST_CELL = {"xofy": "bins", "parametric": "parameter_name", "workflow": "key"}
 #: id of the trash-icon column (it has no data field)
 TRASH_COL = "_del"
 #: the Check column colours its text by what the worker found (pcs.checkKind in pcs_grid.js decides ok / bad / ...)
@@ -113,8 +113,10 @@ COLUMN_OPTIONS: dict[str, dict[str, dict]] = {
         "group": {"flex": 2, "minWidth": 110},
         "parameter_name": {"flex": 3, "minWidth": 130},
         "upper_limit": {"flex": 1.5, "minWidth": 90},
+        "rule_name": {"flex": 2, "minWidth": 130},
         "action": {"flex": 2, "minWidth": 110},
         "config_key": {"flex": 2.5, "minWidth": 130},
+        "bin_or_token": {"flex": 2, "minWidth": 130},
     },
     "xofy": {
         "valid_operations": {"width": 135, "minWidth": 100},

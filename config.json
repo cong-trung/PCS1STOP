@@ -37,7 +37,7 @@
     "compression": false
   },
   "ui": {
-    "product": "HST"
+    "product": "SST"
   },
   "program_bins": {
     "datasources": [
