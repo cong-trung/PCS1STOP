@@ -23,9 +23,9 @@ def write_csv(path: Path, numbers, program: str = "P", header=("PROGRAM_NAME", "
     return path
 
 
-def as_rules(*rules: tuple[str, str]) -> list[tuple[str, str, str]]:
-    """(RuleName, Bins) pairs as ``PcsDieFileDoc.bin_rules()`` gives them."""
-    return [(f"x{i}", name, bins) for i, (name, bins) in enumerate(rules)]
+def as_rules(*rules: tuple[str, str]) -> list[tuple[str, str, str, str]]:
+    """(RuleName, Bins) pairs as ``PcsDieFileDoc.bin_rules()`` gives them - one joint Valid Operations."""
+    return [(f"x{i}", name, bins, "VPO") for i, (name, bins) in enumerate(rules)]
 
 
 def missing(tmp_path, rules, numbers) -> list[int]:

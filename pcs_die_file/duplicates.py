@@ -14,7 +14,9 @@ same ranges are duplicates of each other.  That is all this module reports.  A r
 (PARTIAL_OVERLAP) is left alone, and a rule that sits in a hole cut out of another (EXPLICIT_EXCEPTION: ``IB70,[FB7056]``
 and ``FB7056``) cannot be a duplicate of it, because the hole is not part of the other's effective ranges.  Rules with
 ``LowYield`` in their name (any case) are not looked at, and neither is a rule whose Bins cannot be read - the checker
-reports those.
+reports those.  Duplicates are only looked for inside the same ``ValidOperations`` of the rules' ``<RuleGroup>``: two
+rules of different values (``""`` - no such attribute - is a value like any other) are never compared, so the same bins
+under two different operations are no duplicates.
 """
 from __future__ import annotations
 
@@ -45,6 +47,7 @@ class BinRule:
     key: str  # what the caller calls the rule (the id of its row)
     name: str  # RuleName
     bins: str  # the Bins expression, as written
+    valid_operations: str  # the ValidOperations of its <RuleGroup> ("" when there is none): only rules of the same value meet
     ranges: tuple[Range, ...]  # effective ranges: sorted, apart from each other, carve-outs cut out
 
 
@@ -118,20 +121,38 @@ def effective_ranges(normal: Iterable[Range], carved: Iterable[Range]) -> list[R
     return merge(ranges)
 
 
-def find_duplicates(rules: Iterable[tuple[str, str, str]]) -> list[Duplicate]:
-    """``rules``: (key, RuleName, Bins) of every XOFYBIN rule, in file order.  Returns the rules whose effective ranges
-    lie completely inside those of another rule - with that rule - in file order."""
+def find_duplicates(rules: Iterable[tuple[str, str, str, str]]) -> list[Duplicate]:
+    """``rules``: (key, RuleName, Bins, ValidOperations) of every XOFYBIN rule, in file order.  Returns the rules whose
+    effective ranges lie completely inside those of another rule - with that rule - in file order.  Only rules of the
+    same Valid Operations are compared with each other."""
     items: list[BinRule] = []
-    for key, name, bins in rules:
+    for key, name, bins, valid_operations in rules:
         name, bins = (name or "").strip(), (bins or "").strip()
+        ops = (valid_operations or "").strip()
         parsed = None if SKIPPED_NAME in name.lower() else split_bins(bins)
         ranges = effective_ranges(*parsed) if parsed else []
         if ranges:
-            items.append(BinRule(key, name, bins, tuple(ranges)))
+            items.append(BinRule(key, name, bins, ops, tuple(ranges)))
 
-    # A rule is inside another when each of its ranges is: sweep the ranges by start, keep the ends of everything that
-    # started before (sorted), and what ends at or after the range asked about holds it.  Only the holders are looked at.
-    spans = sorted((r.start, r.end, i) for i, item in enumerate(items) for r in item.ranges)
+    groups: dict[str, list[int]] = {}
+    for i, item in enumerate(items):
+        groups.setdefault(item.valid_operations, []).append(i)
+
+    result: dict[int, Duplicate] = {}
+    for indices in groups.values():  # one Valid Operations value at a time: the groups never meet
+        holders = _holders(items, indices)
+        for i in indices:
+            if holders[i]:
+                result[i] = Duplicate(items[i], tuple(items[p] for p in sorted(holders[i])))
+    return [result[i] for i in sorted(result)]
+
+
+def _holders(items: list[BinRule], indices: list[int]) -> dict[int, set[int]]:
+    """Which of the rules in ``indices`` (one Valid Operations group) each of them lies inside of.
+
+    A rule is inside another when each of its ranges is: sweep the ranges by start, keep the ends of everything that
+    started before (sorted), and what ends at or after the range asked about holds it.  Only the holders are looked at."""
+    spans = sorted((r.start, r.end, i) for i in indices for r in items[i].ranges)
     reach: list[tuple[int, int]] = []  # (end, rule) of every range that starts at or before the one asked about
     holders: dict[int, set[int]] = {}
     at = 0
@@ -144,4 +165,4 @@ def find_duplicates(rules: Iterable[tuple[str, str, str]]) -> list[Duplicate]:
             around = {rule for _, rule in reach[bisect_left(reach, (end, -1)) :] if rule != i}
             holders[i] = around if i not in holders else holders[i] & around
         at = stop
-    return [Duplicate(item, tuple(items[p] for p in sorted(holders[i]))) for i, item in enumerate(items) if holders[i]]
+    return holders

@@ -166,6 +166,10 @@ def column_defs(table: str) -> list[dict]:
     return defs
 
 
+#: the tab that shows the rule table only for the quality bins: the rules whose X and Y are both 1
+QUALITY_TAB = "Quality bin"
+#: what the Quality bin tab shows: the XOFYBIN rows with X = 1 and Y = 1 (the cells are text - trimmed before comparing)
+QUALITY_FILTER = "p => !!p.data && String(p.data.x || '').trim() === '1' && String(p.data.y || '').trim() === '1'"
 #: the tab of the bins the TP's units had in the last UNIT_DAYS days (the wording is the one asked for)
 UNIT_TAB = f"Missing bins based unit level data last {UNIT_DAYS} days"
 #: what the Missing Bins tab says before there is a pcs_die_file or a TP to compare
@@ -270,6 +274,8 @@ class PcsDieFilePage:
         self.program_seq = 0  # changes whenever program_csv or unit_csv does, so a check knows its answer is about an older TP
         self.actions_sent: list[str] | None = None  # the Actions of the alarm map as the browser has them (see sync_actions)
         self.grids: dict[str, ui.aggrid] = {}
+        self.quality_grid: ui.aggrid | None = None  # the rule table again, X and Y 1 only (the Quality bin tab)
+        self.xofy_tab = "Rule"  # which of the two rule-table tabs is shown (see show_tab)
         self.needs_doc: list = []
 
     # ------------------------------------------------------------------------------------- layout
@@ -416,7 +422,7 @@ class PcsDieFilePage:
             )
             self.needs_doc += [self.edit_btn]
 
-    def make_grid(self, table: str) -> ui.aggrid:
+    def make_grid(self, table: str, *, quality: bool = False) -> ui.aggrid:
         options = {
             "columnDefs": column_defs(table),
             "rowData": [],
@@ -438,11 +444,18 @@ class PcsDieFilePage:
             "tooltipShowDelay": 500,
             "suppressFieldDotNotation": True,
             "animateRows": False,
-            "overlayNoRowsTemplate": '<span class="pcs-empty">Click Browse and pick a pcs_die_file XML to load it here.</span>',
+            "overlayNoRowsTemplate": (
+                '<span class="pcs-empty">No rule with X and Y 1 - or no pcs_die_file is open yet.</span>'
+                if quality
+                else '<span class="pcs-empty">Click Browse and pick a pcs_die_file XML to load it here.</span>'
+            ),
         }
+        if quality:  # the Quality bin tab: the same table, only the rules whose X and Y are 1 (see QUALITY_FILTER)
+            options[":isExternalFilterPresent"] = "() => true"
+            options[":doesExternalFilterPass"] = QUALITY_FILTER
         grid = (
             ui.aggrid(options, theme="balham")
-            .classes("pcs-grid")
+            .classes("pcs-grid pcs-quality" if quality else "pcs-grid")
             .props(f"data-pcs={table}")
         )
         grid.on(
@@ -450,7 +463,10 @@ class PcsDieFilePage:
             lambda e, t=table: self.on_cell_changed(t, e),
             args=["rowId", "colId", "newValue", "oldValue", "source"],
         )
-        self.grids[table] = grid
+        if quality:  # the Rule tab and the Quality bin tab show the same table: both follow `data-pcs` updates
+            self.quality_grid = grid
+        else:
+            self.grids[table] = grid
         return grid
 
     def _section_title(self, table: str) -> None:
@@ -484,6 +500,7 @@ class PcsDieFilePage:
                 value="Rule", on_change=lambda e: self.show_tab(e.value)
             ).props("dense align=left no-caps") as self.tabs:
                 ui.tab("Rule")
+                ui.tab(QUALITY_TAB)
                 with ui.tab("Error"):
                     self.err_badge = ui.badge("0", color="negative").props("floating")
                     self.err_badge.set_visibility(False)
@@ -502,6 +519,10 @@ class PcsDieFilePage:
                 self.rule_pane = ui.element("div").classes("pcs-gridwrap w-full h-full")
                 with self.rule_pane:
                     self.make_grid("xofy")
+                self.quality_pane = ui.element("div").classes("pcs-gridwrap w-full h-full")
+                with self.quality_pane:
+                    self.make_grid("xofy", quality=True)
+                self.quality_pane.set_visibility(False)
                 self.err_pane = ui.element("div").classes("w-full h-full")
                 with self.err_pane:
                     self.err_text = ui.label(
@@ -525,10 +546,15 @@ class PcsDieFilePage:
 
     def show_tab(self, name: str) -> None:
         self.rule_pane.set_visibility(name == "Rule")
+        self.quality_pane.set_visibility(name == QUALITY_TAB)
         self.err_pane.set_visibility(name == "Error")
         self.warn_pane.set_visibility(name == "Warning")
         self.miss_pane.set_visibility(name == "Missing Bins")
         self.unit_pane.set_visibility(name == UNIT_TAB)
+        if name in ("Rule", QUALITY_TAB):  # the two grids show the same rows in another order: a range carries no meaning
+            if name != self.xofy_tab:
+                ui.run_javascript("pcs.dropRanges('xofy')")
+            self.xofy_tab = name
 
     def _status_bar(self) -> None:
         bar = {"value": 0, "show_value": False}
@@ -771,6 +797,10 @@ class PcsDieFilePage:
             self.grids[table].run_grid_method(
                 "setGridOption", "rowData", doc.rows(table)
             )
+        self.quality_grid.run_grid_method(
+            "setGridOption", "rowData", doc.rows("xofy")
+        )  # the Quality bin tab filters these rows itself (QUALITY_FILTER), so it gets all of them
+        self.quality_grid.run_grid_method("onFilterChanged")
         self.update_info()
         self.parse_label.set_text(f"Parsed {name} at {time.strftime('%H:%M:%S')}")
         self.refresh_buttons()

@@ -37,7 +37,21 @@
   const ARROWS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
 
   // ---------------------------------------------------------------- helpers
-  const rootEl = (key) => document.querySelector(`[data-pcs="${key}"]`);
+  /** Every DOM node of a grid key - the Rule and the Quality bin tab show the same table, so a key can be there twice. */
+  const rootEls = (key) => Array.from(document.querySelectorAll(`[data-pcs="${key}"]`));
+  /** The grid the user sees: a click, a focus or Ctrl+C must never read the hidden copy of the same table. */
+  const rootEl = (key) => {
+    const els = rootEls(key);
+    return els.find((el) => el.getClientRects().length > 0) || els[0] || null;
+  };
+  /** {el, api} of every grid of a key: the server sends an update once, every copy of the table gets it. */
+  const gridsOf = (key) =>
+    rootEls(key)
+      .map((el) => {
+        const comp = getElement(el);
+        return comp ? { el, api: comp.api } : null;
+      })
+      .filter(Boolean);
   const apiOf = (key) => {
     const el = rootEl(key);
     const comp = el && getElement(el);
@@ -67,8 +81,11 @@
         }
       : null;
   const refresh = (key) => {
-    const api = apiOf(key);
-    if (api) api.refreshCells({ force: true, suppressFlash: true });
+    for (const { api } of gridsOf(key)) api.refreshCells({ force: true, suppressFlash: true });
+  };
+  /** A grid that filters its own rows (the Quality bin tab) has to look again after the data changed. */
+  const refilter = (key) => {
+    for (const { el, api } of gridsOf(key)) if (el.classList.contains('pcs-quality')) api.onFilterChanged();
   };
   const notice = (message, type) => emitEvent('pcs_notice', { message, type: type || 'info' });
   /** true (and a hint) when the grids are read-only */
@@ -353,23 +370,29 @@
       (rows[id] = rows[id] || {})[field] = value;
     }
     for (const key of Object.keys(perGrid)) {
-      const api = apiOf(key);
-      if (!api) continue;
-      let heights = false;
-      for (const [id, changes] of Object.entries(perGrid[key])) {
-        const node = api.getRowNode(id);
-        if (!node || !node.data) continue;
-        node.setData({ ...node.data, ...changes });
-        if (S.picker && S.picker.table === key && S.picker.rowId === id && '_flow' in changes) S.picker.refreshFrom(node.data);
-        heights = heights || 'bins' in changes || 'comment' in changes;
+      for (const { api } of gridsOf(key)) {
+        let heights = false;
+        for (const [id, changes] of Object.entries(perGrid[key])) {
+          const node = api.getRowNode(id);
+          if (!node || !node.data) continue;
+          node.setData({ ...node.data, ...changes });
+          if (S.picker && S.picker.table === key && S.picker.rowId === id && '_flow' in changes) S.picker.refreshFrom(node.data);
+          heights = heights || 'bins' in changes || 'comment' in changes;
+        }
+        if (heights) api.resetRowHeights();
       }
-      if (heights) api.resetRowHeights();
+      refilter(key); // an edited X or Y can take the row out of (or put it into) the Quality bin tab
     }
   };
 
   S.reset = () => {
     S.ranges = {};
     S.active = null;
+  };
+
+  /** A tab switch between two grids of the same table (Rule <-> Quality bin): the row numbers mean something else there. */
+  S.dropRanges = (key) => {
+    delete S.ranges[key];
   };
 
   /** Add row button: ask the server for a new row below the selected one (bottom row of the selection). */
@@ -387,24 +410,30 @@
   S.rows = (ops) => {
     const keys = new Set();
     for (const op of ops) {
-      const api = apiOf(op.table);
-      if (!api) continue;
-      keys.add(op.table);
-      if (op.op === 'remove') {
-        const node = api.getRowNode(op.id);
-        if (node) api.applyTransaction({ remove: [node.data] });
-      } else {
-        api.applyTransaction({ add: [op.row], addIndex: op.index });
+      for (const { api } of gridsOf(op.table)) {
+        keys.add(op.table);
+        if (op.op === 'remove') {
+          const node = api.getRowNode(op.id);
+          if (node) api.applyTransaction({ remove: [node.data] });
+        } else {
+          api.applyTransaction({ add: [op.row], addIndex: op.index });
+        }
       }
     }
     for (const key of keys) {
       delete S.ranges[key]; // displayed row numbers just moved
       refresh(key);
+      refilter(key);
     }
     const added = ops.filter((o) => o.op === 'add').pop();
     const api = added && apiOf(added.table);
     const node = api && api.getRowNode(added.row.id);
     if (!node) return;
+    if (api.getDisplayedRowIndex(node) < 0) {
+      // the Quality bin tab hides the rows whose X and Y are not 1: a row that landed outside them is not shown
+      notice('The new row is not shown in this tab: its X and Y are not 1 (Ctrl+Z removes it).', 'info');
+      return;
+    }
     api.ensureNodeVisible(node, 'middle');
     if (!added.col) return;
     S.active = added.table;
@@ -418,9 +447,7 @@
     S.editMode = !!on;
     document.body.classList.toggle('pcs-edit-mode', S.editMode);
     for (const key of allKeys()) {
-      const api = apiOf(key);
-      if (!api) continue;
-      if (!S.editMode) api.stopEditing(true);
+      for (const { api } of gridsOf(key)) if (!S.editMode) api.stopEditing(true);
       refresh(key);
     }
   };

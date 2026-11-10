@@ -199,22 +199,31 @@ def test_note_is_a_read_only_column_of_the_rule_table_only():
     assert all(f != "note" for f, _ in COLUMNS["workflow"] + COLUMNS["parametric"])
 
 
-def test_bin_rules_are_id_name_and_bins_in_file_order():
-    assert rules_doc(("A", "IB70,[FB7056]"), ("B", "FB7006")).bin_rules() == [("x0", "A", "IB70,[FB7056]"), ("x1", "B", "FB7006")]
-    assert PcsDieFileDoc(PCS_DIE_FILE.encode("utf-8")).bin_rules() == [("x0", "6900", "FB700")]
+def test_bin_rules_are_id_name_bins_and_valid_operations_in_file_order():
+    assert rules_doc(("A", "IB70,[FB7056]"), ("B", "FB7006")).bin_rules() == [
+        ("x0", "A", "IB70,[FB7056]", ""),
+        ("x1", "B", "FB7006", ""),
+    ]
+    assert PcsDieFileDoc(PCS_DIE_FILE.encode("utf-8")).bin_rules() == [("x0", "6900", "FB700", "")]
+
+
+def test_bin_rules_carry_the_valid_operations_of_their_rule_group():
+    doc = rules_doc(("A", "IB70"))
+    doc.apply_edits([CellEdit("xofy", "x0", "valid_operations", "VPO")])
+    assert doc.bin_rules() == [("x0", "A", "IB70", "VPO")]
 
 
 def test_bin_rules_read_the_rule_name_where_the_file_keeps_it():
     """The real die file has Bins on the XOFYBIN and RuleName on its RepeatTriggerGroup."""
     xml = rules_xml(("A", "IB70")).replace(' RuleName="A">', ">", 1).replace("<RepeatTriggerGroup>", '<RepeatTriggerGroup RuleName="A">')
     assert '<XOFYBIN Bins="IB70" X="4" Y="5">' in xml and xml.count('RuleName="A"') == 1  # (it moved)
-    assert PcsDieFileDoc(xml.encode("utf-8")).bin_rules() == [("x0", "A", "IB70")]
+    assert PcsDieFileDoc(xml.encode("utf-8")).bin_rules() == [("x0", "A", "IB70", "")]
 
 
 def test_bin_rules_follow_the_edits():
     doc = rules_doc(("A", "IB70"))
     doc.apply_edits([CellEdit("xofy", "x0", "bins", "FB7006,[FB7056]"), CellEdit("xofy", "x0", "rule_name", "A2")])
-    assert doc.bin_rules() == [("x0", "A2", "FB7006,[FB7056]")]
+    assert doc.bin_rules() == [("x0", "A2", "FB7006,[FB7056]", "")]
 
 
 def test_notes_land_on_their_rows_and_only_changed_cells_are_reported():

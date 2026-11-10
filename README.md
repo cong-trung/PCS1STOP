@@ -271,14 +271,17 @@ place of its own in the status bar: `TP 'EMRR1X3B13K2634A': querying unit level 
 ## Duplicate bins (Warning tab)
 
 Validation has one more step after `pcs_die_file_checker`: it looks for XOFYBIN rules whose bins lie completely inside the
-bins of another rule (`pcs_die_file/duplicates.py`, the logic of `dupilcate.md`). It is **only a warning**: the pcs_die_file
-stays valid and **Save stays on**.
+bins of another rule of the **same `Valid Operations`** (`pcs_die_file/duplicates.py`, the logic of `dupilcate.md`). It is
+**only a warning**: the pcs_die_file stays valid and **Save stays on**.
 
 * The `Bins` of every rule become ranges of the 8 digits of a DB bin: `DB88050218` = `88050218-88050218`, `FB7006` =
   `70060000-70069999` (padded with `0` for the start and `9` for the end), `IB70` = `70000000-70999999`, `FB8090-8099` =
   `80900000-80999999`, `IB9-99` = `90000000-99999999`.
 * What stands in `[ ]` is a deliberate carve-out and is cut out: `IB70,[FB7056]` = `70000000-70559999` and
   `70570000-70999999`. These *effective ranges* - never the text - are what rules are compared by.
+* Rules are only compared inside the same `Valid Operations` (the value of their `<RuleGroup>`): two different values -
+  and a rule outside any group (`""`) against a rule of a group - never pair up, so the same bins under two operations are
+  no duplicates.
 * A rule whose effective ranges lie completely inside those of another rule is a duplicate of it (two rules with the same
   ranges are duplicates of each other). **Not** reported: a rule that only overlaps another one, and a rule that sits in a
   carve-out (`FB7056` next to `IB70,[FB7056]`, `DB80905871` next to `FB8090-8099,[DB80905871]`) - that is on purpose.
@@ -309,6 +312,12 @@ another TP is looked up; with no TP the tab says what to do. The tab **Missing b
 * Rules with `LowYield` in their name (any case) are **not used**: they cover nearly everything and would hide every gap.
   A token of a rule that is no bin is skipped (the checker reports it).
 * The list is sorted by bin, an FB before its DBs: `9103`, `91030000`, `91030001`, ..., `9104`, ...
+
+## Quality bin tab (XOFYBIN Rule)
+
+Next to the **Rule** tab of the XOFYBIN table is the tab **Quality bin**: the same table, with the same columns and the
+same editing, but only the rules whose **X** and **Y** are both `1`. It is the same data - an edit in either tab changes
+the file - and the filter follows the X / Y cells as they are edited (a rule that no longer matches leaves the tab).
 
 ## Action and Alarm Config Key pickers (XOFYBIN Rule grid)
 

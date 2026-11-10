@@ -5,7 +5,8 @@ pcs_die_file text and additionally maps every block that belongs to an XOFYBIN r
 the grid can show a per-row "Validation Error".  Nothing in pcs_die_file_checker.py is modified or duplicated.
 
 After the checker comes one more step, the duplicate bins (``pcs_die_file.duplicates``): an XOFYBIN rule whose bins lie
-completely inside another rule's bins is reported as a *warning* - a note on its row and the text of the Warning tab.
+completely inside another rule's bins - of the same Valid Operations - is reported as a *warning*: a note on its row and
+the text of the Warning tab.
 Warnings never make the check fail (``CheckResult.ok``), so the pcs_die_file can still be saved.
 
 The last step is the bins of the queried test program (``pcs_die_file.missing_bins``): the ones no rule has are listed in
@@ -101,7 +102,8 @@ def _warning_text(found: list[dup.Duplicate], filename: str) -> str:
     lines = [
         f"{len(found)} rule(s) lie completely inside the bins of another rule.",
         "Only a warning: the pcs_die_file can still be saved.",
-        "(A [bin] in Bins is a carve-out - a rule that sits in one is no duplicate.  LowYield rules are skipped.)",
+        "(A [bin] in Bins is a carve-out - a rule that sits in one is no duplicate.  Only rules of the same Valid "
+        "Operations are compared.  LowYield rules are skipped.)",
         "",
     ]
     for item in found:
@@ -120,7 +122,7 @@ def _warning_text(found: list[dup.Duplicate], filename: str) -> str:
     return "\n".join(lines).rstrip()
 
 
-def _find_duplicates(bin_rules: list[tuple[str, str, str]] | None, warnings: list[str]) -> list[dup.Duplicate]:
+def _find_duplicates(bin_rules: list[tuple[str, str, str, str]] | None, warnings: list[str]) -> list[dup.Duplicate]:
     if bin_rules is None:
         return []
     try:
@@ -162,7 +164,7 @@ def _missing_text(found: mb.ProgramCoverage | None, error: str, *, units: bool =
     return "\n".join([*lines, "", *map(str, found.missing)]).rstrip()
 
 
-def _check_missing(bin_rules: list[tuple[str, str, str]] | None, program_csv: str | Path | None,
+def _check_missing(bin_rules: list[tuple[str, str, str, str]] | None, program_csv: str | Path | None,
                    warnings: list[str], step: str = "Missing bins") -> tuple[mb.ProgramCoverage | None, str]:
     """(the bins of the CSV against the rules, why that could not be told - '' when it could)."""
     if bin_rules is None or program_csv is None:
@@ -179,13 +181,14 @@ def _check_missing(bin_rules: list[tuple[str, str, str]] | None, program_csv: st
 
 def run_check(xml_text: str, filename: str, alarm_map_path: str = "", skip_workflow_check: bool = True,
               bin_digit_exceptions: dict | None = None,
-              bin_rules: Iterable[tuple[str, str, str]] | None = None,
+              bin_rules: Iterable[tuple[str, str, str, str]] | None = None,
               program_csv: str | Path | None = None,
               unit_csv: str | Path | None = None) -> CheckResult:
     """Run pcs_die_file_checker on ``xml_text``.  The paths/options come from the caller (config.json), none live here.
 
-    ``bin_rules``: (row id, RuleName, Bins) of every XOFYBIN rule (``PcsDieFileDoc.bin_rules()``) - the duplicate-bins
-    step runs on them after the checker; None = that step is left out.
+    ``bin_rules``: (row id, RuleName, Bins, Valid Operations) of every XOFYBIN rule (``PcsDieFileDoc.bin_rules()``) - the
+    duplicate-bins step runs on them after the checker (only inside the same Valid Operations); None = that step is left
+    out.
     ``program_csv``: the CSV the TP Name box saved (PROGRAM_NAME, BIN_NUMBER) - its bins that none of those rules has go
     to the Missing Bins tab; None = that step is left out.
     ``unit_csv``: the same for the CSV of the bins the TP's units had - the unit level tab."""

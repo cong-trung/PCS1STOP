@@ -160,7 +160,7 @@ def test_the_unit_level_tab_has_the_name_that_was_asked_for():
 def test_the_validation_status_counts_errors_and_warnings():
     assert validation_status(rv.CheckResult(text="", ok=True, seconds=0.31)) == "Validation: OK  (0.3s)"
     assert validation_status(rv.CheckResult(text="", ok=False, n_errors=2, seconds=1.0)) == "Validation: 2 error(s)  (1.0s)"
-    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", ()), ())
+    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", "", ()), ())
     only_warnings = rv.CheckResult(text="", ok=True, duplicates=[duplicate] * 3)
     assert validation_status(only_warnings) == "Validation: OK, 3 warning(s)  (0.0s)"  # warnings do not turn OK into errors
     both = rv.CheckResult(text="", ok=False, n_errors=1, duplicates=[duplicate])
@@ -168,7 +168,7 @@ def test_the_validation_status_counts_errors_and_warnings():
 
 
 def test_the_validation_status_counts_missing_bins_too():
-    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", ()), ())
+    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", "", ()), ())
     assert validation_status(rv.CheckResult(text="", ok=True, missing=[1, 2, 3])) == "Validation: OK, 3 bin(s) missing  (0.0s)"
     both = rv.CheckResult(text="", ok=True, duplicates=[duplicate], missing=[1])
     assert validation_status(both) == "Validation: OK, 1 warning(s), 1 bin(s) missing  (0.0s)"
@@ -178,7 +178,7 @@ def test_the_validation_status_counts_missing_bins_too():
 
 
 def test_the_validate_button_tells_what_it_found():
-    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", ()), ())
+    duplicate = dup.Duplicate(dup.BinRule("x1", "A", "FB7006", "", ()), ())
     assert validation_notice(rv.CheckResult(text="", ok=True)) == ("No errors found.", "positive")
     assert validation_notice(rv.CheckResult(text="", ok=False, n_errors=2, missing=[1])) == (
         "2 error(s) - see the Error tab.", "warning")  # an error is all it says

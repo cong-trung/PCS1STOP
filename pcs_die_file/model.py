@@ -1350,9 +1350,13 @@ class PcsDieFileDoc:
         ]
 
     # ------------------------------------------------------------------------------------ validation
-    def bin_rules(self) -> list[tuple[str, str, str]]:
-        """(row id, RuleName, Bins) of every XOFYBIN rule in file order - what the duplicate check compares."""
-        return [(row.id, self._get(row, "rule_name"), self._get(row, "bins")) for row in self._rows["xofy"]]
+    def bin_rules(self) -> list[tuple[str, str, str, str]]:
+        """(row id, RuleName, Bins, Valid Operations) of every XOFYBIN rule in file order - what the duplicate check
+        compares (only inside the same Valid Operations) and what the missing-bins step reads."""
+        return [
+            (row.id, self._get(row, "rule_name"), self._get(row, "bins"), self._get(row, "valid_operations"))
+            for row in self._rows["xofy"]
+        ]
 
     def set_validation(
         self,

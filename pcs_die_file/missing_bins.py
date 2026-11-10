@@ -36,11 +36,12 @@ class ProgramCoverage:
     ignored: int  # rows of the CSV whose BIN_NUMBER is no bin number (empty, text, more than 8 digits)
 
 
-def rule_ranges(rules: Iterable[tuple[str, str, str]]) -> list[Range]:
+def rule_ranges(rules: Iterable[tuple[str, str, str, str]]) -> list[Range]:
     """What the rules cover: their Bins without the ``[ ]`` parts, LowYield rules left out, overlapping and touching
-    ranges joined.  ``rules``: (key, RuleName, Bins), as ``PcsDieFileDoc.bin_rules()`` gives them."""
+    ranges joined.  ``rules``: (key, RuleName, Bins, ValidOperations), as ``PcsDieFileDoc.bin_rules()`` gives them - the
+    Valid Operations play no part here."""
     ranges: list[Range] = []
-    for _key, name, bins in rules:
+    for _key, name, bins, _ops in rules:
         if SKIPPED_NAME in (name or "").lower():
             continue
         ranges += split_bins((bins or "").strip(), strict=False)[0]
@@ -60,7 +61,7 @@ def _why(pl, error: Exception) -> str:
     return " ".join(str(error).split("\n")[0].split()) or type(error).__name__
 
 
-def find_missing(rules: Iterable[tuple[str, str, str]], csv_path: str | Path) -> ProgramCoverage:
+def find_missing(rules: Iterable[tuple[str, str, str, str]], csv_path: str | Path) -> ProgramCoverage:
     """The bin numbers of the program's CSV that no rule has."""
     import polars as pl  # (only this check needs it: the rest of the app starts without it)
 

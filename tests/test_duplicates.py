@@ -16,9 +16,10 @@ def ranges(expression: str) -> list[str]:
     return [str(r) for r in effective_ranges(*split_bins(expression))]
 
 
-def duplicates(*rules: tuple[str, str]) -> dict[str, list[str]]:
-    """{rule: [the rules it lies inside of]} for (RuleName, Bins) pairs."""
-    found = find_duplicates((f"r{i}", name, bins) for i, (name, bins) in enumerate(rules))
+def duplicates(*rules: tuple[str, str] | tuple[str, str, str]) -> dict[str, list[str]]:
+    """{rule: [the rules it lies inside of]} for (RuleName, Bins[, ValidOperations]) tuples ("" when not given)."""
+    items = [(f"r{i}", rule[0], rule[1], rule[2] if len(rule) > 2 else "") for i, rule in enumerate(rules)]
+    found = find_duplicates(items)
     return {item.rule.name: [parent.name for parent in item.parents] for item in found}
 
 
@@ -163,6 +164,24 @@ def test_ranges_that_start_together_hold_each_other_correctly():
     assert duplicates(("Big", "IB70"), ("Small", "FB7000")) == {"Small": ["Big"]}
 
 
+def test_duplicates_are_only_looked_for_inside_the_same_valid_operations():
+    assert duplicates(("Bin70xx", "IB70", "VPO"), ("Bin7006", "FB7006", "VPO")) == {"Bin7006": ["Bin70xx"]}
+    assert duplicates(("Bin70xx", "IB70", "VPO"), ("Bin7006", "FB7006", "SORT")) == {}  # no direction makes a pair
+    assert duplicates(("Bin7006", "FB7006", "SORT"), ("Bin70xx", "IB70", "VPO")) == {}
+    assert duplicates(("A", "FB7006", "VPO"), ("B", "FB7006", "SORT")) == {}  # not even the same bins
+
+
+def test_rules_without_valid_operations_are_a_group_of_their_own():
+    assert duplicates(("Bin70xx", "IB70"), ("Bin7006", "FB7006")) == {"Bin7006": ["Bin70xx"]}  # both ""
+    assert duplicates(("Bin70xx", "IB70"), ("Bin7006", "FB7006", "VPO")) == {}  # "" is no wildcard
+    assert duplicates(("Bin70xx", "IB70", " VPO "), ("Bin7006", "FB7006", "VPO")) == {"Bin7006": ["Bin70xx"]}  # trimmed
+
+
+def test_every_operations_value_is_its_own_group_and_file_order_is_kept():
+    assert duplicates(("BigV", "IB70", "VPO"), ("BigS", "IB70", "SORT"), ("SmallV", "FB7006", "VPO"),
+                      ("SmallS", "FB7006", "SORT")) == {"SmallV": ["BigV"], "SmallS": ["BigS"]}
+
+
 @pytest.mark.parametrize("name", ["XofY_LowYield", "XofY_LowYield_Cover", "LowYield_Bin9", "lowyield", "XOFY_LOWYIELD", "a_LoWyIeLd_b"])
 def test_lowyield_rules_are_not_looked_at_in_either_direction(name):
     assert duplicates((name, "IB9-99"), ("Bin9850", "FB9850")) == {}  # as the bigger rule
@@ -176,30 +195,30 @@ def test_rules_that_cannot_be_read_are_skipped():
 
 
 def test_a_rule_without_a_name_is_compared_too():
-    found = find_duplicates([("x0", "Big", "IB70"), ("x1", "", "FB7006"), ("x2", None, "FB7007")])
+    found = find_duplicates([("x0", "Big", "IB70", "VPO"), ("x1", "", "FB7006", "VPO"), ("x2", None, "FB7007", "VPO")])
     assert [(item.rule.key, item.rule.name) for item in found] == [("x1", ""), ("x2", "")]
     assert [parent.key for parent in found[0].parents] == ["x0"]
 
 
-def test_a_duplicate_knows_its_bins_and_ranges_and_those_of_its_parent():
-    (found,) = find_duplicates([("a", "Bin70xx", " IB70,[FB7056] "), ("b", "Bin7006", "FB7006")])
-    assert (found.rule.key, found.rule.name, found.rule.bins) == ("b", "Bin7006", "FB7006")
+def test_a_duplicate_knows_its_bins_ranges_and_operations_and_those_of_its_parent():
+    (found,) = find_duplicates([("a", "Bin70xx", " IB70,[FB7056] ", " VPO "), ("b", "Bin7006", "FB7006", "VPO")])
+    assert (found.rule.key, found.rule.name, found.rule.bins, found.rule.valid_operations) == ("b", "Bin7006", "FB7006", "VPO")
     assert format_ranges(found.rule.ranges) == "70060000-70069999"
     (parent,) = found.parents
-    assert (parent.key, parent.name, parent.bins) == ("a", "Bin70xx", "IB70,[FB7056]")
+    assert (parent.key, parent.name, parent.bins, parent.valid_operations) == ("a", "Bin70xx", "IB70,[FB7056]", "VPO")
     assert format_ranges(parent.ranges) == "70000000-70559999;70570000-70999999"
 
 
 def test_nothing_in_nothing_out():
     assert find_duplicates([]) == []
-    assert find_duplicates([("a", "Only", "FB7006")]) == []
+    assert find_duplicates([("a", "Only", "FB7006", "")]) == []
 
 
 def test_a_big_file_is_still_quick():
     """Every FB inside its IB and every DB inside its FB: 20,200 rules, 20,100 duplicates - and no all-against-all."""
-    rules = [(f"i{i}", f"IB{i:02d}", f"IB{i:02d}") for i in range(100)]
-    rules += [(f"f{i}", f"FB{i:04d}", f"FB{i:04d}") for i in range(10000)]
-    rules += [(f"d{i}", f"DB{i:04d}0001", f"DB{i:04d}0001") for i in range(10000)]
+    rules = [(f"i{i}", f"IB{i:02d}", f"IB{i:02d}", "") for i in range(100)]
+    rules += [(f"f{i}", f"FB{i:04d}", f"FB{i:04d}", "") for i in range(10000)]
+    rules += [(f"d{i}", f"DB{i:04d}0001", f"DB{i:04d}0001", "") for i in range(10000)]
     started = time.perf_counter()
     found = find_duplicates(rules)
     assert time.perf_counter() - started < 5
@@ -239,3 +258,54 @@ def test_the_real_die_file_carve_outs_and_lowyield_rules_are_no_duplicates():
     ):
         assert name not in found, name
     assert not any(parent.endswith(("LowYield", "LowYield_Cover")) for parents in found.values() for parent in parents)
+
+
+# ------------------------------------------------------ the NVLH die file (two Valid Operations groups, and the "" rules)
+NVLH_DIE_FILE = Path(__file__).with_name("SST_Die_NVLH.xml")
+needs_nvlh_file = pytest.mark.skipif(
+    not NVLH_DIE_FILE.is_file(), reason="tests/SST_Die_NVLH.xml is not part of this checkout"
+)
+
+
+def nvlh_rules() -> list[tuple[str, str, str, str]]:
+    return PcsDieFileDoc(NVLH_DIE_FILE.read_bytes(), NVLH_DIE_FILE.name).bin_rules()
+
+
+def nvlh_duplicates() -> dict[str, list[str]]:
+    return {item.rule.name: [parent.name for parent in item.parents] for item in find_duplicates(nvlh_rules())}
+
+
+def nvlh_operations() -> dict[str, str]:
+    return {name: ops for _key, name, _bins, ops in nvlh_rules()}
+
+
+@needs_nvlh_file
+def test_the_nvlh_die_file_still_finds_the_duplicates_of_one_valid_operations_group():
+    found, ops = nvlh_duplicates(), nvlh_operations()
+    assert ops["75530030"] == ops["7553"] == "7297,7899,7295"
+    assert found["75530030"] == ["7553"]  # DB75530030 inside FB7553, both of the 7297,... group
+    assert found["96130010"] == ["9613"]
+    assert ops["71020010"] == ops["7102"] == ""  # the rules outside any group ("") hold together too
+    assert found["71020010"] == ["7102"]
+
+
+@needs_nvlh_file
+def test_the_nvlh_die_file_compares_no_rules_of_different_valid_operations():
+    """The RV_* rules watch the same bins as rules of the 7297,... group; the other Valid Operations keeps them apart."""
+    found, ops = nvlh_duplicates(), nvlh_operations()
+    for name in ("RV_9850", "RV_90000105", "RV_73100000", "RV_96190000", "RV_90000111"):
+        assert ops[name] == "2395,2397,6304"
+        assert name not in found, name
+    assert ops["9850"] == ops["90000105"] == "7297,7899,7295"  # the same bins, watched by the other group
+    for name in ("9850", "90000105", "73100000", "96190000", "90000111"):
+        assert name not in found, name  # and inside their own group they lie inside nothing either
+    assert not any(name.startswith("RV_") for parents in found.values() for name in parents)
+
+
+@needs_nvlh_file
+def test_the_nvlh_die_file_db_inside_an_fb_of_another_group_is_no_duplicate():
+    found, ops = nvlh_duplicates(), nvlh_operations()
+    assert ops["71029999"] == "7297,7899,7295" and ops["7102"] == ""
+    assert "71029999" not in found  # DB71029999 lies inside FB7102, but the groups differ
+    assert ops["91000105"] == "7297,7899,7295" and ops["9100"] == ""
+    assert "91000105" not in found  # DB91000105 lies inside FB9100 ("") - the same story

@@ -114,6 +114,28 @@ def test_no_duplicates_no_warnings():
     assert res.warning_text == "No warnings found in pcs_die_file: r.xml"
 
 
+def test_the_duplicate_step_compares_only_inside_the_same_valid_operations():
+    """The FB lies inside the IB, but the two rules are of a different Valid Operations: no warning."""
+    xofybin = """    <XOFYBIN Bins="{bins}" X="4" Y="5" RuleName="{name}" CollateralType="Tester">
+      <RepeatTriggerGroup RepeatTriggerHistoryLength="3">
+        <Alarm Order="1" Severity="ParameterControlWarning_3" Rule="XofY" BinOrToken="7000" Action="PowerCycle" />
+      </RepeatTriggerGroup>
+    </XOFYBIN>
+"""
+    xml = f"""<ComponentRecipe checksum="x">
+  <Identity type="iLLIAD" datagroup="SST_X" name="Die" id="1" version="1.0" asof="2024-01-01T00:00:00" />
+  <SharedConfigurations />
+  <RuleGroup GroupName="XofYBinGroup" ValidOperations="VPO">
+{xofybin.format(name="Bin70xx", bins="IB70")}  </RuleGroup>
+  <RuleGroup GroupName="XofYBinGroup" ValidOperations="SORT">
+{xofybin.format(name="Bin7006", bins="FB7006")}  </RuleGroup>
+</ComponentRecipe>
+"""
+    res = check_with_duplicates(xml)
+    assert res.n_warnings == 0 and res.duplicates == [] and res.notes == {}
+    assert res.warning_text == "No warnings found in pcs_die_file: r.xml"
+
+
 def test_without_the_rules_the_duplicate_step_is_left_out():
     res = rv.run_check(die_file(("Bin70xx", "IB70"), ("Bin7006", "FB7006")), "r.xml", Settings(DEFAULT_CONFIG_PATH).alarm_map, True)
     assert res.ok and res.n_warnings == 0 and res.notes == {} and "No warnings" in res.warning_text
